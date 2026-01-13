@@ -2,6 +2,7 @@ import os
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload
+
 import models
 import schemas
 from database import engine, get_db
@@ -10,30 +11,28 @@ USE_MOCK_DB = os.getenv("USE_MOCK_DB", "true").lower() == "true"
 
 app = FastAPI(title="Study Program Backend")
 
-
+# ✅ CORS: sin "*" si usas allow_credentials=True
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "http://172.21.252.23:3000"
+        "http://172.21.252.23:3000",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-print("✅ Backend started | USE_MOCK_DB =", USE_MOCK_DB)
-print(">>> TEST COMMIT FROM IT-ALEX <<<")
+print("Backend started | USE_MOCK_DB =", USE_MOCK_DB)
 
 # SOLO crear tablas si estás en DB real
 if not USE_MOCK_DB:
     try:
         models.Base.metadata.create_all(bind=engine)
-        print("✅ Tables created/verified in real DB")
+        print("Tables created/verified in real DB")
     except Exception as e:
-        print("❌ DB connection failed on startup:", e)
+        print("DB connection failed on startup:", e)
 
 
 def get_db_safe():
@@ -241,7 +240,7 @@ def delete_group(group_id: int, db: Session = Depends(get_db_safe)):
 
 
 # =========================================================
-# SCHEDULER CONSTRAINTS (GET ONLY for now)
+# SCHEDULER CONSTRAINTS (CRUD)
 # =========================================================
 
 @app.get("/constraint-types/", response_model=list[schemas.ConstraintTypeResponse])
@@ -263,3 +262,64 @@ def read_scheduler_constraints(db: Session = Depends(get_db_safe)):
     if USE_MOCK_DB:
         return []
     return db.query(models.SchedulerConstraint).order_by(models.SchedulerConstraint.id.asc()).all()
+
+
+@app.post("/scheduler-constraints/", response_model=schemas.SchedulerConstraintResponse)
+def create_scheduler_constraint(
+    payload: schemas.SchedulerConstraintCreate,
+    db: Session = Depends(get_db_safe),
+):
+    if USE_MOCK_DB:
+        return {**payload.model_dump(), "id": 1}
+
+    ct = db.query(models.ConstraintType).filter(models.ConstraintType.id == payload.constraint_type_id).first()
+    if not ct:
+        raise HTTPException(status_code=400, detail="constraint_type_id does not exist")
+
+    row = models.SchedulerConstraint(**payload.model_dump())
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@app.put("/scheduler-constraints/{constraint_id}", response_model=schemas.SchedulerConstraintResponse)
+def update_scheduler_constraint(
+    constraint_id: int,
+    payload: schemas.SchedulerConstraintCreate,
+    db: Session = Depends(get_db_safe),
+):
+    if USE_MOCK_DB:
+        raise HTTPException(status_code=400, detail="Mock mode: update disabled")
+
+    row = db.query(models.SchedulerConstraint).filter(models.SchedulerConstraint.id == constraint_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Scheduler constraint not found")
+
+    ct = db.query(models.ConstraintType).filter(models.ConstraintType.id == payload.constraint_type_id).first()
+    if not ct:
+        raise HTTPException(status_code=400, detail="constraint_type_id does not exist")
+
+    for k, v in payload.model_dump().items():
+        setattr(row, k, v)
+
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@app.delete("/scheduler-constraints/{constraint_id}")
+def delete_scheduler_constraint(
+    constraint_id: int,
+    db: Session = Depends(get_db_safe),
+):
+    if USE_MOCK_DB:
+        raise HTTPException(status_code=400, detail="Mock mode: delete disabled")
+
+    row = db.query(models.SchedulerConstraint).filter(models.SchedulerConstraint.id == constraint_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Scheduler constraint not found")
+
+    db.delete(row)
+    db.commit()
+    return {"ok": True}
