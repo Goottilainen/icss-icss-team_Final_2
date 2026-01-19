@@ -1,6 +1,15 @@
-import axios from "axios";
+// src/api.js
 
-const API_URL = "http://localhost:8000";
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
+async function request(path, options = {}) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
 
 const api = {
   // --- Study Programs ---
