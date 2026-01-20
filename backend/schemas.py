@@ -87,6 +87,7 @@ class LecturerCreate(BaseModel):
     employment_type: str
     personal_email: Optional[str] = None
     mdh_email: Optional[str] = None
+    phone: Optional[str] = None
 
 
 
