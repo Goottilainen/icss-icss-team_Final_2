@@ -112,7 +112,6 @@ export default function ConstraintOverview() {
       } else {
         await api.createConstraint(payload);
       }
-
       setModalOpen(false);
       loadData();
     } catch (e) {

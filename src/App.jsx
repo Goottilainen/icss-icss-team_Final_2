@@ -4,10 +4,11 @@ import "./App.css";
 import ProgramOverview from "./Components/ProgramOverview";
 import GroupOverview from "./Components/GroupOverview";
 import LecturerOverview from "./Components/LecturerOverview";
+import ModuleOverview from "./Components/ModuleOverview";
+import RoomOverview from "./Components/RoomOverview";
 import ScheduleOverview from "./Components/ScheduleOverview";
 import ConstraintOverview from "./Components/ConstraintOverview";
 import AvailabilityOverview from "./Components/AvailabilityOverview";
-
 
 export default function App() {
   const [page, setPage] = useState("programs");
@@ -20,10 +21,11 @@ export default function App() {
         {page === "programs" && <ProgramOverview />}
         {page === "groups" && <GroupOverview />}
         {page === "lecturers" && <LecturerOverview />}
+        {page === "modules" && <ModuleOverview />}
+        {page === "rooms" && <RoomOverview />}
         {page === "schedule" && <ScheduleOverview />}
         {page === "constraints" && <ConstraintOverview />}
         {page === "availability" && <AvailabilityOverview />}
-
       </div>
     </div>
   );
@@ -34,10 +36,11 @@ function Topbar({ page, setPage }) {
     { key: "programs", label: "Programs Overview" },
     { key: "groups", label: "Groups Overview" },
     { key: "lecturers", label: "Lecturers Overview" },
+    { key: "modules", label: "Modules Overview" },
+    { key: "rooms", label: "Rooms Overview" },
     { key: "schedule", label: "Schedule Overview" },
     { key: "constraints", label: "Constraints Overview" },
     { key: "availability", label: "Availability Overview" },
-
   ];
 
   return (
@@ -60,3 +63,4 @@ function Topbar({ page, setPage }) {
     </div>
   );
 }
+
