@@ -1,33 +1,41 @@
-from fastapi import FastAPI, Depends, HTTPException
+import os
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload
 import models
 import schemas
 from database import engine, get_db
-import os
-from fastapi import UploadFile, File
 
-app = FastAPI(title="Study Program Backend")
 
-# --- STANDARD LOCAL CORS ---
+app = FastAPI(
+    title="Study Program Backend",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+)
+
+# --- CORS (LOCAL + DEPLOY) ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "http://127.0.0.1:3000"
+        "http://127.0.0.1:3000",
+        # If you have Vercel/Render frontend URLs, add them here:
+        # "https://your-frontend.vercel.app",
+        # "https://your-frontend.onrender.com",
+        "*",  # keep if your professor expects easy access
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-
-# Create tables in Neon DB if they don't exist
+# Create tables if they don't exist (won't crash if DB not ready)
 try:
     models.Base.metadata.create_all(bind=engine)
-    print("✅ Connected to Neon DB. Tables verified/created.")
+    print("✅ DB connected. Tables verified/created.")
 except Exception as e:
-    print("❌ Error connecting to DB:", e)
+    print("❌ DB error during create_all:", e)
 
 
 @app.get("/")
@@ -250,17 +258,17 @@ def delete_group(group_id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
-# =========================================================
-# SCHEDULER CONSTRAINTS & ROOMS
-# =========================================================
-
+# =========================
+# CONSTRAINT TYPES
+# =========================
 @app.get("/constraint-types/", response_model=list[schemas.ConstraintTypeResponse])
 def read_constraint_types(db: Session = Depends(get_db)):
     return db.query(models.ConstraintType).order_by(models.ConstraintType.id.asc()).all()
 
 
-# --- ROOMS CRUD ---
-
+# =========================
+# ROOMS (CRUD)
+# =========================
 @app.get("/rooms/", response_model=list[schemas.RoomResponse])
 def read_rooms(db: Session = Depends(get_db)):
     return db.query(models.Room).order_by(models.Room.id.asc()).all()
@@ -303,8 +311,9 @@ def delete_room(room_id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
-# --- CONSTRAINTS CRUD (NEW) ---
-
+# =========================
+# SCHEDULER CONSTRAINTS (CRUD)
+# =========================
 @app.get("/scheduler-constraints/", response_model=list[schemas.SchedulerConstraintResponse])
 def read_scheduler_constraints(db: Session = Depends(get_db)):
     return db.query(models.SchedulerConstraint).order_by(models.SchedulerConstraint.id.asc()).all()
@@ -343,11 +352,13 @@ def delete_constraint(id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"ok": True}
 
+
 # =========================
 # AVAILABILITIES (TEMP - IN MEMORY)
 # =========================
 _avail_store = []
 _avail_id = 1
+
 
 @app.get("/availabilities/")
 def read_availabilities():
@@ -379,7 +390,11 @@ def delete_availability(availability_id: int):
             _avail_store.pop(i)
             return {"ok": True}
     raise HTTPException(status_code=404, detail="Availability not found")
-    
+
+
+# =========================
+# UPLOAD
+# =========================
 MAX_MB = 10
 ALLOWED_TYPES = {
     "text/csv",
@@ -387,13 +402,12 @@ ALLOWED_TYPES = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
 
+
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
-    # 1) type check
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail="Only CSV/XLSX allowed")
 
-    # 2) size check
     data = await file.read()
     if len(data) > MAX_MB * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large")
@@ -401,10 +415,6 @@ async def upload_file(file: UploadFile = File(...)):
     return {"ok": True, "filename": file.filename}
 
 
-
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
-
-
