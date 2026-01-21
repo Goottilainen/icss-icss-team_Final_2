@@ -91,12 +91,15 @@ export default function LecturerOverview() {
   const [editingId, setEditingId] = useState(null);
 
   const [draft, setDraft] = useState({
-    fullName: "",
-    domain: "",
+    firstName: "",
+    lastName: "",
+    title: "",
     employmentType: "Full-time",
     personalEmail: "",
     mdhEmail: "",
     phone: "",
+    location: "",
+    teachingLoad: "",
   });
 
   async function loadLecturers() {
@@ -105,12 +108,16 @@ export default function LecturerOverview() {
       const data = await api.getLecturers();
       const mapped = (Array.isArray(data) ? data : []).map((x) => ({
         id: x.id,
-        fullName: x.full_name,
-        domain: x.domain,
+        firstName: x.first_name,
+        lastName: x.last_name,
+        title: x.title || "",
         employmentType: x.employment_type,
         personalEmail: x.personal_email || "",
         mdhEmail: x.mdh_email || "",
         phone: x.phone || "",
+        location: x.location || "",
+        teachingLoad: x.teaching_load || "",
+        fullName: `${x.first_name} ${x.last_name}`.trim(),
       }));
       setLecturers(mapped);
     } catch (e) {
@@ -128,12 +135,15 @@ export default function LecturerOverview() {
   function openAdd() {
     setEditingId(null);
     setDraft({
-      fullName: "",
-      domain: "",
+      firstName: "",
+      lastName: "",
+      title: "",
       employmentType: "Full-time",
       personalEmail: "",
       mdhEmail: "",
       phone: "",
+      location: "",
+      teachingLoad: "",
     });
     setFormMode("add");
   }
@@ -141,27 +151,42 @@ export default function LecturerOverview() {
   function openEdit(row) {
     setEditingId(row.id);
     setDraft({
-      fullName: row.fullName || "",
-      domain: row.domain || "",
+      firstName: row.firstName || "",
+      lastName: row.lastName || "",
+      title: row.title || "",
       employmentType: row.employmentType || "Full-time",
       personalEmail: row.personalEmail || "",
       mdhEmail: row.mdhEmail || "",
       phone: row.phone || "",
+      location: row.location || "",
+      teachingLoad: row.teachingLoad || "",
     });
     setFormMode("edit");
   }
 
+  async function remove(id) {
+    if (!window.confirm("Are you sure you want to delete this lecturer?")) return;
+    try {
+      await api.deleteLecturer(id);
+      await loadLecturers();
+    } catch (e) {
+      alert("Error deleting lecturer: " + e.message);
+    }
+  }
   async function save() {
-    if (!draft.fullName.trim()) return alert("Full Name is required");
-    if (!draft.domain.trim()) return alert("Domain is required");
-
+    if (!draft.firstName.trim() || !draft.lastName.trim() || !draft.title.trim()){
+      return alert("First Name and Last Name, and Title are required.");
+    }
     const payload = {
-      full_name: draft.fullName.trim(),
-      domain: draft.domain.trim(),
+      first_name: draft.firstName.trim(),
+      last_name: draft.lastName.trim(),
+      title: draft.title.trim() || null,
       employment_type: draft.employmentType,
       personal_email: draft.personalEmail.trim() || null,
       mdh_email: draft.mdhEmail.trim() || null,
       phone: draft.phone.trim() || null,
+      location: draft.location.trim() || null,
+      teaching_load: draft.teachingLoad.trim() || null
     };
 
     try {
@@ -172,33 +197,22 @@ export default function LecturerOverview() {
       }
       await loadLecturers();
       setFormMode("overview");
-      setEditingId(null);
     } catch (e) {
-      console.error(e);
       alert("Backend error while saving lecturer.");
     }
   }
 
-  async function remove(id) {
-    if (!window.confirm("Delete this lecturer?")) return;
-    try {
-      await api.deleteLecturer(id);
-      await loadLecturers();
-    } catch (e) {
-      console.error(e);
-      alert("Backend error while deleting lecturer.");
-    }
-  }
-
-  const filtered = useMemo(() => {
+const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return lecturers;
     return lecturers.filter((l) =>
       l.fullName.toLowerCase().includes(q) ||
-      l.domain.toLowerCase().includes(q)
+      l.domain.toLowerCase().includes(q) ||
+      l.title.toLowerCase().includes(q)
     );
   }, [lecturers, query]);
-
+  
+  
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -231,14 +245,11 @@ export default function LecturerOverview() {
           <tbody>
             {filtered.map((l) => (
               <tr key={l.id} style={styles.tr}>
+                <td style={styles.td}>{l.title}</td>
                 <td style={styles.td}><strong>{l.fullName}</strong></td>
-                <td style={styles.td}>{l.domain}</td>
                 <td style={styles.td}>{l.employmentType}</td>
-                <td style={styles.td}>{l.phone || "-"}</td>
-                {/* --- SEPARATE COLUMNS FOR EMAILS --- */}
+                <td style={styles.td}>{l.location || "-"}</td>
                 <td style={styles.td}>{l.mdhEmail || "-"}</td>
-                <td style={styles.td}>{l.personalEmail || "-"}</td>
-
                 <td style={{...styles.td, textAlign:'right', whiteSpace:'nowrap'}}>
                   <button style={{...styles.btn, ...styles.editBtn}} onClick={() => openEdit(l)}>
                     Edit
@@ -263,23 +274,43 @@ export default function LecturerOverview() {
                 </div>
 
                 <div style={styles.formGroup}>
-                    <label style={styles.label}>Full Name</label>
+                    <label style={styles.label}>Title</label>
                     <input
                       style={styles.input}
-                      value={draft.fullName}
-                      onChange={(e) => setDraft({ ...draft, fullName: e.target.value })}
-                      placeholder="e.g., Anna Schmidt"
+                      value={draft.title}
+                      onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                      placeholder="e.g., Prof. Dr."
                     />
                 </div>
 
                 <div style={{display:'flex', gap:'15px', marginBottom:'15px'}}>
                     <div style={{flex:1}}>
-                        <label style={styles.label}>Domain</label>
+                        <label style={styles.label}>First Name</label>
                         <input
                           style={styles.input}
-                          value={draft.domain}
-                          onChange={(e) => setDraft({ ...draft, domain: e.target.value })}
-                          placeholder="e.g., Cyber Security"
+                          value={draft.firstName}
+                          onChange={(e) => setDraft({ ...draft, firstName: e.target.value })}
+                          placeholder="e.g., Mohamed"
+                        />
+                    </div>
+                    <div style={{flex:1}}>
+                        <label style={styles.label}>Last Name</label>
+                        <select
+                          style={styles.input}
+                          value={draft.lastName}
+                          onChange={(e) => setDraft({ ...draft, lastName: e.target.value })}
+                          placeholder="e.g., Salah"
+                        />
+                   </div>
+                </div>
+<div style={{display:'flex', gap:'15px', marginBottom:'15px'}}>
+                    <div style={{flex:1}}>
+                        <label style={styles.label}>Location</label>
+                        <input
+                          style={styles.input}
+                          value={draft.location}
+                          onChange={(e) => setDraft({ ...draft, location: e.target.value })}
+                          placeholder="e.g., Berlin"
                         />
                     </div>
                     <div style={{flex:1}}>
@@ -297,16 +328,6 @@ export default function LecturerOverview() {
                 </div>
 
                 <div style={styles.formGroup}>
-                    <label style={styles.label}>Phone Number</label>
-                    <input
-                      style={styles.input}
-                      value={draft.phone}
-                      onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
-                      placeholder="e.g., +49 123 45678"
-                    />
-                </div>
-
-                <div style={styles.formGroup}>
                     <label style={styles.label}>MDH Email</label>
                     <input
                       style={styles.input}
@@ -317,12 +338,12 @@ export default function LecturerOverview() {
                 </div>
 
                 <div style={styles.formGroup}>
-                    <label style={styles.label}>Personal Email (Optional)</label>
+                    <label style={styles.label}>Phone Number</label>
                     <input
                       style={styles.input}
-                      value={draft.personalEmail}
-                      onChange={(e) => setDraft({ ...draft, personalEmail: e.target.value })}
-                      placeholder="e.g., anna@gmail.com"
+                      value={draft.phone}
+                      onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
+                      placeholder="e.g., +49 123 45678"
                     />
                 </div>
 

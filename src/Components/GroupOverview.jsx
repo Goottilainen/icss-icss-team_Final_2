@@ -95,6 +95,8 @@ export default function GroupOverview() {
     size: "",
     description: "",
     email: "",
+    parentGroup: "",
+    program: "",
   });
 
   async function loadGroups() {
@@ -107,6 +109,8 @@ export default function GroupOverview() {
         size: x.size,
         description: x.description || "",
         email: x.email || "",
+        parentGroup: x.parent_group || "",
+        program: x.program || "",
       }));
       setGroups(mapped);
     } catch (e) {
@@ -123,7 +127,7 @@ export default function GroupOverview() {
 
   function openAdd() {
     setEditingId(null);
-    setDraft({ groupName: "", size: "", description: "", email: "" });
+    setDraft({ groupName: "", size: "", description: "", email: "", parentGroup: "", program: "" });
     setFormMode("add");
   }
 
@@ -134,19 +138,22 @@ export default function GroupOverview() {
       size: String(row.size ?? ""),
       description: row.description || "",
       email: row.email || "",
+      parentGroup: row.parentGroup || "",
+      program: row.program || "",
     });
     setFormMode("edit");
   }
 
   async function save() {
     if (!draft.groupName.trim()) return alert("Group name is required");
-    if (!String(draft.size).trim()) return alert("Size is required");
 
     const payload = {
       group_name: draft.groupName.trim(),
       size: Number(draft.size),
       description: draft.description.trim() || null,
       email: draft.email.trim() || null,
+      parent_group: draft.parentGroup.trim() || null,
+      program: draft.program.trim() || null,
     };
 
     try {
@@ -157,9 +164,7 @@ export default function GroupOverview() {
       }
       await loadGroups();
       setFormMode("overview");
-      setEditingId(null);
     } catch (e) {
-      console.error(e);
       alert("Backend error while saving group.");
     }
   }
@@ -170,7 +175,6 @@ export default function GroupOverview() {
       await api.deleteGroup(id);
       loadGroups();
     } catch (e) {
-      console.error(e);
       alert("Backend error while deleting group.");
     }
   }
@@ -181,7 +185,8 @@ export default function GroupOverview() {
     if (!q) return groups;
     return groups.filter((g) =>
       g.groupName.toLowerCase().includes(q) ||
-      g.description.toLowerCase().includes(q)
+      g.description.toLowerCase().includes(q) ||
+      g.program.toLowerCase().includes(q)
     );
   }, [groups, query]);
 
@@ -196,7 +201,7 @@ export default function GroupOverview() {
 
       <input
         style={styles.searchBar}
-        placeholder="Search groups..."
+        placeholder="Search by name, description, or program..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
@@ -209,23 +214,25 @@ export default function GroupOverview() {
               <th style={styles.th}>Size</th>
               <th style={styles.th}>Description</th>
               <th style={styles.th}>Email</th>
+              <th style={styles.th}>Parent Group</th>
+              <th style={styles.th}>Program</th>
               <th style={{...styles.th, textAlign:'right'}}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((g) => (
               <tr key={g.id} style={styles.tr}>
-                <td style={styles.td}><strong>{g.groupName}</strong></td>
+                <td style={styles.td}>
+                    <strong>{g.groupName}</strong>
+                    <div style={{fontSize:'0.75rem', color:'#888'}}>{g.description}</div>
+                </td>
                 <td style={styles.td}>{g.size}</td>
-                <td style={{...styles.td, color: '#666', fontSize:'0.85rem'}}>{g.description || "-"}</td>
                 <td style={styles.td}>{g.email || "-"}</td>
+                <td style={styles.td}>{g.program || "-"}</td>
+                <td style={styles.td}>{g.parentGroup || "-"}</td>
                 <td style={{...styles.td, textAlign:'right'}}>
-                  <button style={{...styles.btn, ...styles.editBtn}} onClick={() => openEdit(g)}>
-                    Edit
-                  </button>
-                  <button style={{...styles.btn, ...styles.deleteBtn}} onClick={() => remove(g.id)}>
-                    Delete
-                  </button>
+                  <button style={{...styles.btn, ...styles.editBtn}} onClick={() => openEdit(g)}>Edit</button>
+                  <button style={{...styles.btn, ...styles.deleteBtn}} onClick={() => remove(g.id)}>Delete</button>
                 </td>
               </tr>
             ))}
@@ -243,44 +250,35 @@ export default function GroupOverview() {
                 </div>
 
                 <div style={styles.formGroup}>
-                    <label style={styles.label}>Group Name</label>
-                    <input
-                      style={styles.input}
-                      value={draft.groupName}
-                      onChange={(e) => setDraft({ ...draft, groupName: e.target.value })}
-                      placeholder="e.g., BIT 1024"
-                    />
+                    <label style={styles.label}>Name</label>
+                    <input style={styles.input} value={draft.groupName} onChange={(e) => setDraft({ ...draft, groupName: e.target.value })} placeholder=""/>
                 </div>
 
                 <div style={styles.formGroup}>
-                    <label style={styles.label}>Student Count</label>
-                    <input
-                      type="number"
-                      style={styles.input}
-                      value={draft.size}
-                      onChange={(e) => setDraft({ ...draft, size: e.target.value })}
-                      placeholder="e.g., 25"
-                    />
+                    <label style={styles.label}>Size</label>
+                    <input type="number" style={styles.input} value={draft.size} onChange={(e) => setDraft({ ...draft, size: e.target.value })} placeholder=""/>
                 </div>
 
                 <div style={styles.formGroup}>
-                    <label style={styles.label}>Description</label>
-                    <input
-                      style={styles.input}
-                      value={draft.description}
-                      onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                      placeholder="e.g., Information Technology B.Sc."
-                    />
+                    <label style={styles.label}>Email</label>
+                    <input style={styles.input} value={draft.email} onChange={(e) => setDraft({ ...draft, email: e.target.value })} placeholder="" />
                 </div>
 
                 <div style={styles.formGroup}>
-                    <label style={styles.label}>Group Email</label>
-                    <input
-                      style={styles.input}
-                      value={draft.email}
-                      onChange={(e) => setDraft({ ...draft, email: e.target.value })}
-                      placeholder="e.g., bit1024@mdh.de"
-                    />
+                    <label style={styles.label}>Brief Description</label>
+                    <input style={styles.input} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="e.g., A group focused on software development"/>
+                </div>
+
+                {/* Parent Group */}
+                <div style={styles.formGroup}>
+                    <label style={styles.label}>Parent Group (can be empty)</label>
+                    <input style={styles.input} value={draft.parentGroup} onChange={(e) => setDraft({ ...draft, parentGroup: e.target.value })} placeholder="e.g., Faculty of Engineering" />
+                </div>
+
+                {/*  Program */}
+                <div style={styles.formGroup}>
+                    <label style={styles.label}>Program (can be empty)</label>
+                    <input style={styles.input} value={draft.program} onChange={(e) => setDraft({ ...draft, program: e.target.value })} placeholder="e.g., Computer Science" />
                 </div>
 
                 <div style={{marginTop: '25px', display:'flex', justifyContent:'flex-end', gap:'10px'}}>
