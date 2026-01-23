@@ -1,7 +1,10 @@
-import axios from 'axios';
+// src/api.js (o donde lo tengas)
 
-const API_BASE_URL = process.env.REACT_APP_API_URL|| "http://localhost:5000";
-const API_URL = API_BASE_URL;
+const RAW_BASE =
+  process.env.REACT_APP_API_URL || "http://127.0.0.1:8000";
+
+// Remove trailing slash if present (avoid // in URLs)
+const API_BASE_URL = RAW_BASE.replace(/\/$/, "");
 
 async function request(path, options = {}) {
   const res = await fetch(`${API_BASE_URL}${path}`, {
@@ -12,14 +15,34 @@ async function request(path, options = {}) {
     ...options,
   });
 
+  // Read body once
+  const text = await res.text().catch(() => "");
 
+  // Handle errors with body text
   if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(`${res.status} ${res.statusText} - ${txt}`);
+    throw new Error(`${res.status} ${res.statusText} - ${text}`);
   }
 
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
+  // Empty response (common for DELETE)
+  if (!text) return null;
+
+  // Try JSON only if it looks like JSON or server says JSON
+  const contentType = res.headers.get("content-type") || "";
+  const looksLikeJson =
+    contentType.includes("application/json") ||
+    text.trim().startsWith("{") ||
+    text.trim().startsWith("[");
+
+  if (looksLikeJson) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      // If server lied or returned non-JSON, just return text
+      return text;
+    }
+  }
+
+  return text;
 }
 
 const api = {
@@ -28,10 +51,16 @@ const api = {
     return request("/study-programs/");
   },
   createProgram(payload) {
-    return request("/study-programs/", { method: "POST", body: JSON.stringify(payload) });
+    return request("/study-programs/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   },
   updateProgram(id, payload) {
-    return request(`/study-programs/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+    return request(`/study-programs/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
   },
   deleteProgram(id) {
     return request(`/study-programs/${id}`, { method: "DELETE" });
@@ -42,10 +71,16 @@ const api = {
     return request("/modules/");
   },
   createModule(payload) {
-    return request("/modules/", { method: "POST", body: JSON.stringify(payload) });
+    return request("/modules/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   },
   updateModule(id, payload) {
-    return request(`/modules/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+    return request(`/modules/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
   },
   deleteModule(id) {
     return request(`/modules/${id}`, { method: "DELETE" });
@@ -56,10 +91,16 @@ const api = {
     return request("/lecturers/");
   },
   createLecturer(payload) {
-    return request("/lecturers/", { method: "POST", body: JSON.stringify(payload) });
+    return request("/lecturers/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   },
   updateLecturer(id, payload) {
-    return request(`/lecturers/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+    return request(`/lecturers/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
   },
   deleteLecturer(id) {
     return request(`/lecturers/${id}`, { method: "DELETE" });
@@ -70,10 +111,16 @@ const api = {
     return request("/groups/");
   },
   createGroup(payload) {
-    return request("/groups/", { method: "POST", body: JSON.stringify(payload) });
+    return request("/groups/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   },
   updateGroup(id, payload) {
-    return request(`/groups/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+    return request(`/groups/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
   },
   deleteGroup(id) {
     return request(`/groups/${id}`, { method: "DELETE" });
@@ -84,10 +131,16 @@ const api = {
     return request("/rooms/");
   },
   createRoom(payload) {
-    return request("/rooms/", { method: "POST", body: JSON.stringify(payload) });
+    return request("/rooms/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   },
   updateRoom(id, payload) {
-    return request(`/rooms/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+    return request(`/rooms/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
   },
   deleteRoom(id) {
     return request(`/rooms/${id}`, { method: "DELETE" });
@@ -103,10 +156,16 @@ const api = {
     return request("/scheduler-constraints/");
   },
   createConstraint(payload) {
-    return request("/scheduler-constraints/", { method: "POST", body: JSON.stringify(payload) });
+    return request("/scheduler-constraints/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   },
   updateConstraint(id, payload) {
-    return request(`/scheduler-constraints/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+    return request(`/scheduler-constraints/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
   },
   deleteConstraint(id) {
     return request(`/scheduler-constraints/${id}`, { method: "DELETE" });
@@ -117,15 +176,20 @@ const api = {
     return request("/availabilities/");
   },
   createAvailability(payload) {
-    return request("/availabilities/", { method: "POST", body: JSON.stringify(payload) });
+    return request("/availabilities/", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
   },
   updateAvailability(id, payload) {
-    return request(`/availabilities/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+    return request(`/availabilities/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
   },
   deleteAvailability(id) {
     return request(`/availabilities/${id}`, { method: "DELETE" });
   },
-  
 };
 
 export default api;
