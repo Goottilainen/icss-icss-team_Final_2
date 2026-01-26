@@ -1,18 +1,21 @@
 const API_URL = process.env.NODE_ENV === 'production'
-  ? "/api"
+  ? "/api" // Points to Vercel/Python backend
   : "http://127.0.0.1:8000";
 
 const API_BASE_URL = API_URL.replace(/\/$/, "");
 
 async function request(path, options = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  // Fix: Ensure we don't end up with double slashes if path has one
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  const res = await fetch(`${API_BASE_URL}${cleanPath}`, {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
   });
+
   const text = await res.text().catch(() => "");
   if (!res.ok) throw new Error(`${res.status} ${res.statusText} - ${text}`);
   if (!text) return null;
-  
+
   try {
     return JSON.parse(text);
   } catch {

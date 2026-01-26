@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import api from "../api";
+import api from "./api";
 
 const styles = {
   container: { padding: "20px", fontFamily: "'Segoe UI', sans-serif", color: "#333", maxWidth: "100%" },
@@ -188,9 +188,6 @@ export default function RoomOverview() {
         (r.location || "").toLowerCase().includes(q)
     );
   }, [rooms, query]);
-
-  // Combine standard and custom types for the dropdown
-  const allRoomTypes = useMemo(() => [...STANDARD_TYPES, ...customTypes], [customTypes]);
 
   return (
     <div style={styles.container}>

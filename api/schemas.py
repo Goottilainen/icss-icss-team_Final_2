@@ -1,6 +1,9 @@
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import List, Optional, Dict, Any, Literal
 
+Hardness = Literal["Hard", "Soft"]
+Scope = Literal["Global", "Program", "Specialization", "Module", "Lecturer", "Group", "Room"]
+
 
 # ... (Users/Auth/Availabilities same as before) ...
 class UserCreate(BaseModel):

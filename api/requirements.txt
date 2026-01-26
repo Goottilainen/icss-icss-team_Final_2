@@ -3,4 +3,7 @@ uvicorn
 sqlalchemy
 psycopg2-binary
 pydantic
+pydantic[email]
+email-validator
+python-dotenv
 python-multipart

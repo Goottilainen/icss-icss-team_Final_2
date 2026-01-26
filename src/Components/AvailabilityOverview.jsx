@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import api from "../api";
+import api from "./api";
 import "./ConstraintOverview.css";
 
 export default function AvailabilityOverview() {
@@ -72,7 +72,7 @@ export default function AvailabilityOverview() {
     try {
       const payload = {
         ...draft,
-        lecturer_id: Number(draft.lecturer_id), // <-- CLAVE: backend espera int
+        lecturer_id: Number(draft.lecturer_id), // <-- CLAVE: api espera int
       };
 
       if (!payload.lecturer_id) {
