@@ -2,15 +2,17 @@ import os
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload
-import models
-import schemas
-from database import engine, get_db
+# --- RELATIVE IMPORTS ---
+from . import models
+from . import schemas
+from .database import engine, get_db
 
-app = FastAPI(title="Study Program Backend")
+# --- ROOT PATH FIX ---
+app = FastAPI(title="Study Program Backend", root_path="/api")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "*"],
+    allow_origins=["*"], # In Vercel, allow * or your specific domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -23,11 +25,9 @@ try:
 except Exception as e:
     print("❌ DB error during create_all:", e)
 
-
 @app.get("/")
 def root():
     return {"message": "Backend Online"}
-
 
 # =========================
 # STUDY PROGRAMS
@@ -36,7 +36,6 @@ def root():
 def read_programs(db: Session = Depends(get_db)):
     return db.query(models.StudyProgram).options(joinedload(models.StudyProgram.specializations)).all()
 
-
 @app.post("/study-programs/", response_model=schemas.StudyProgramResponse)
 def create_program(program: schemas.StudyProgramCreate, db: Session = Depends(get_db)):
     db_program = models.StudyProgram(**program.model_dump())
@@ -44,7 +43,6 @@ def create_program(program: schemas.StudyProgramCreate, db: Session = Depends(ge
     db.commit()
     db.refresh(db_program)
     return db_program
-
 
 @app.put("/study-programs/{program_id}", response_model=schemas.StudyProgramResponse)
 def update_program(program_id: int, program: schemas.StudyProgramCreate, db: Session = Depends(get_db)):
@@ -57,7 +55,6 @@ def update_program(program_id: int, program: schemas.StudyProgramCreate, db: Ses
     db.refresh(db_program)
     return db_program
 
-
 @app.delete("/study-programs/{program_id}")
 def delete_program(program_id: int, db: Session = Depends(get_db)):
     db_program = db.query(models.StudyProgram).filter(models.StudyProgram.id == program_id).first()
@@ -67,7 +64,6 @@ def delete_program(program_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"ok": True}
 
-
 # =========================
 # SPECIALIZATIONS
 # =========================
@@ -75,48 +71,36 @@ def delete_program(program_id: int, db: Session = Depends(get_db)):
 def read_specializations(db: Session = Depends(get_db)):
     return db.query(models.Specialization).all()
 
-
 @app.post("/specializations/", response_model=schemas.SpecializationResponse)
 def create_specialization(spec: schemas.SpecializationCreate, db: Session = Depends(get_db)):
-    # 1. Fetch Program to get its Name for the text column
     program = db.query(models.StudyProgram).filter(models.StudyProgram.id == spec.program_id).first()
     if not program:
         raise HTTPException(status_code=404, detail="Program not found")
-
-    # 2. Autofill 'study_program' column
     data = spec.model_dump()
     data["study_program"] = program.name
-
     db_spec = models.Specialization(**data)
     db.add(db_spec)
     db.commit()
     db.refresh(db_spec)
     return db_spec
 
-
 @app.put("/specializations/{spec_id}", response_model=schemas.SpecializationResponse)
 def update_specialization(spec_id: int, spec: schemas.SpecializationCreate, db: Session = Depends(get_db)):
     db_spec = db.query(models.Specialization).filter(models.Specialization.id == spec_id).first()
     if not db_spec:
         raise HTTPException(status_code=404, detail="Specialization not found")
-
-    # Update logic (keeping study_program in sync)
     data = spec.model_dump()
     if spec.program_id != db_spec.program_id:
         program = db.query(models.StudyProgram).filter(models.StudyProgram.id == spec.program_id).first()
         if program:
             data["study_program"] = program.name
     else:
-        # Preserve existing name if program didn't change
         data["study_program"] = db_spec.study_program
-
     for k, v in data.items():
         setattr(db_spec, k, v)
-
     db.commit()
     db.refresh(db_spec)
     return db_spec
-
 
 @app.delete("/specializations/{spec_id}")
 def delete_specialization(spec_id: int, db: Session = Depends(get_db)):
@@ -127,14 +111,12 @@ def delete_specialization(spec_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"ok": True}
 
-
 # =========================
 # MODULES
 # =========================
 @app.get("/modules/", response_model=list[schemas.ModuleResponse])
 def read_modules(db: Session = Depends(get_db)):
     return db.query(models.Module).all()
-
 
 @app.post("/modules/", response_model=schemas.ModuleResponse)
 def create_module(module: schemas.ModuleCreate, db: Session = Depends(get_db)):
@@ -147,7 +129,6 @@ def create_module(module: schemas.ModuleCreate, db: Session = Depends(get_db)):
     db.refresh(db_module)
     return db_module
 
-
 @app.put("/modules/{module_code}", response_model=schemas.ModuleResponse)
 def update_module(module_code: str, module: schemas.ModuleCreate, db: Session = Depends(get_db)):
     db_module = db.query(models.Module).filter(models.Module.module_code == module_code).first()
@@ -159,7 +140,6 @@ def update_module(module_code: str, module: schemas.ModuleCreate, db: Session = 
     db.refresh(db_module)
     return db_module
 
-
 @app.delete("/modules/{module_code}")
 def delete_module(module_code: str, db: Session = Depends(get_db)):
     db_module = db.query(models.Module).filter(models.Module.module_code == module_code).first()
@@ -169,14 +149,12 @@ def delete_module(module_code: str, db: Session = Depends(get_db)):
     db.commit()
     return {"ok": True}
 
-
 # =========================
 # LECTURERS
 # =========================
 @app.get("/lecturers/", response_model=list[schemas.LecturerResponse])
 def read_lecturers(db: Session = Depends(get_db)):
     return db.query(models.Lecturer).all()
-
 
 @app.post("/lecturers/", response_model=schemas.LecturerResponse)
 def create_lecturer(lecturer: schemas.LecturerCreate, db: Session = Depends(get_db)):
@@ -185,7 +163,6 @@ def create_lecturer(lecturer: schemas.LecturerCreate, db: Session = Depends(get_
     db.commit()
     db.refresh(db_lecturer)
     return db_lecturer
-
 
 @app.put("/lecturers/{lecturer_id}", response_model=schemas.LecturerResponse)
 def update_lecturer(lecturer_id: int, lecturer: schemas.LecturerCreate, db: Session = Depends(get_db)):
@@ -198,7 +175,6 @@ def update_lecturer(lecturer_id: int, lecturer: schemas.LecturerCreate, db: Sess
     db.refresh(row)
     return row
 
-
 @app.delete("/lecturers/{lecturer_id}")
 def delete_lecturer(lecturer_id: int, db: Session = Depends(get_db)):
     row = db.query(models.Lecturer).filter(models.Lecturer.id == lecturer_id).first()
@@ -208,14 +184,12 @@ def delete_lecturer(lecturer_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"ok": True}
 
-
 # =========================
 # GROUPS
 # =========================
 @app.get("/groups/", response_model=list[schemas.GroupResponse])
 def read_groups(db: Session = Depends(get_db)):
     return db.query(models.Group).all()
-
 
 @app.post("/groups/", response_model=schemas.GroupResponse)
 def create_group(group: schemas.GroupCreate, db: Session = Depends(get_db)):
@@ -224,7 +198,6 @@ def create_group(group: schemas.GroupCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(row)
     return row
-
 
 @app.put("/groups/{group_id}", response_model=schemas.GroupResponse)
 def update_group(group_id: int, group: schemas.GroupCreate, db: Session = Depends(get_db)):
@@ -237,7 +210,6 @@ def update_group(group_id: int, group: schemas.GroupCreate, db: Session = Depend
     db.refresh(row)
     return row
 
-
 @app.delete("/groups/{group_id}")
 def delete_group(group_id: int, db: Session = Depends(get_db)):
     row = db.query(models.Group).filter(models.Group.id == group_id).first()
@@ -247,14 +219,12 @@ def delete_group(group_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"ok": True}
 
-
 # =========================
 # CONSTRAINT TYPES
 # =========================
 @app.get("/constraint-types/", response_model=list[schemas.ConstraintTypeResponse])
 def read_constraint_types(db: Session = Depends(get_db)):
     return db.query(models.ConstraintType).order_by(models.ConstraintType.id.asc()).all()
-
 
 # =========================
 # ROOMS
@@ -263,7 +233,6 @@ def read_constraint_types(db: Session = Depends(get_db)):
 def read_rooms(db: Session = Depends(get_db)):
     return db.query(models.Room).order_by(models.Room.id.asc()).all()
 
-
 @app.post("/rooms/", response_model=schemas.RoomResponse)
 def create_room(room: schemas.RoomCreate, db: Session = Depends(get_db)):
     db_room = models.Room(**room.model_dump())
@@ -271,7 +240,6 @@ def create_room(room: schemas.RoomCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_room)
     return db_room
-
 
 @app.put("/rooms/{room_id}", response_model=schemas.RoomResponse)
 def update_room(room_id: int, room: schemas.RoomCreate, db: Session = Depends(get_db)):
@@ -284,7 +252,6 @@ def update_room(room_id: int, room: schemas.RoomCreate, db: Session = Depends(ge
     db.refresh(db_room)
     return db_room
 
-
 @app.delete("/rooms/{room_id}")
 def delete_room(room_id: int, db: Session = Depends(get_db)):
     db_room = db.query(models.Room).filter(models.Room.id == room_id).first()
@@ -294,14 +261,12 @@ def delete_room(room_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"ok": True}
 
-
 # =========================
 # SCHEDULER CONSTRAINTS
 # =========================
 @app.get("/scheduler-constraints/", response_model=list[schemas.SchedulerConstraintResponse])
 def read_scheduler_constraints(db: Session = Depends(get_db)):
     return db.query(models.SchedulerConstraint).order_by(models.SchedulerConstraint.id.asc()).all()
-
 
 @app.post("/scheduler-constraints/", response_model=schemas.SchedulerConstraintResponse)
 def create_constraint(c: schemas.SchedulerConstraintCreate, db: Session = Depends(get_db)):
@@ -310,7 +275,6 @@ def create_constraint(c: schemas.SchedulerConstraintCreate, db: Session = Depend
     db.commit()
     db.refresh(db_c)
     return db_c
-
 
 @app.put("/scheduler-constraints/{id}", response_model=schemas.SchedulerConstraintResponse)
 def update_constraint(id: int, c: schemas.SchedulerConstraintCreate, db: Session = Depends(get_db)):
@@ -323,7 +287,6 @@ def update_constraint(id: int, c: schemas.SchedulerConstraintCreate, db: Session
     db.refresh(db_c)
     return db_c
 
-
 @app.delete("/scheduler-constraints/{id}")
 def delete_constraint(id: int, db: Session = Depends(get_db)):
     db_c = db.query(models.SchedulerConstraint).filter(models.SchedulerConstraint.id == id).first()
@@ -333,18 +296,15 @@ def delete_constraint(id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"ok": True}
 
-
 # =========================
 # AVAILABILITIES (IN MEMORY)
 # =========================
 _avail_store = []
 _avail_id = 1
 
-
 @app.get("/availabilities/")
 def read_availabilities():
     return _avail_store
-
 
 @app.post("/availabilities/")
 def create_availability(payload: dict):
@@ -354,7 +314,6 @@ def create_availability(payload: dict):
     _avail_store.append(item)
     return item
 
-
 @app.put("/availabilities/{availability_id}")
 def update_availability(availability_id: int, payload: dict):
     for i, row in enumerate(_avail_store):
@@ -363,7 +322,6 @@ def update_availability(availability_id: int, payload: dict):
             return _avail_store[i]
     raise HTTPException(status_code=404, detail="Availability not found")
 
-
 @app.delete("/availabilities/{availability_id}")
 def delete_availability(availability_id: int):
     for i, row in enumerate(_avail_store):
@@ -371,9 +329,3 @@ def delete_availability(availability_id: int):
             _avail_store.pop(i)
             return {"ok": True}
     raise HTTPException(status_code=404, detail="Availability not found")
-
-
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
