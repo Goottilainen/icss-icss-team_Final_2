@@ -60,10 +60,10 @@ const styles = {
   listCardHover: { backgroundColor: "#f1f5f9" },
 
   // --- MODULE LIST LAYOUT (INSIDE TABS) ---
-  // Code | Name | Sem | Cat | ECTS | Assess | Room | Action
+  // Code | Name | Sem | Cat | ECTS | Assess | Room | Specialization
   moduleHeader: {
     display: "grid",
-    gridTemplateColumns: "80px 3fr 80px 100px 60px 1.2fr 1.2fr 80px",
+    gridTemplateColumns: "80px 3fr 80px 100px 60px 1.2fr 1.2fr 150px",
     gap: "15px",
     padding: "10px 15px",
     background: "#f8fafc",
@@ -82,7 +82,7 @@ const styles = {
     background: "white",
     borderBottom: "1px solid #f1f5f9",
     display: "grid",
-    gridTemplateColumns: "80px 3fr 80px 100px 60px 1.2fr 1.2fr 80px",
+    gridTemplateColumns: "80px 3fr 80px 100px 60px 1.2fr 1.2fr 150px",
     alignItems: "center",
     padding: "12px 15px",
     gap: "15px",
@@ -126,7 +126,7 @@ const styles = {
 
   // Modal
   overlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 },
-  modal: { background: "white", padding: "30px", borderRadius: "12px", width: "500px", maxWidth: "90%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }
+  modal: { backgroundColor: "#ffffff", padding: "30px", borderRadius: "12px", width: "500px", maxWidth: "90%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }
 };
 
 const formatDate = (isoDate) => {
@@ -142,9 +142,21 @@ export default function ProgramOverview({ initialData, clearInitialData }) {
   const [specializations, setSpecializations] = useState([]);
   const [modules, setModules] = useState([]);
 
+  // Load all data to allow filtering later.
+  // We need to fetch specializations separately or filter fetched ones to display correct "Linked Specialization" info.
+  // Note: For the Module list inside curriculum, we need to know which specialization a module is linked to *within this program*.
+
   const refreshNestedData = useCallback((progId) => {
     api.getSpecializations().then(res => setSpecializations((res || []).filter(s => s.program_id === progId)));
-    api.getModules().then(res => setModules((res || []).filter(m => m.program_id === progId)));
+    // We need all modules that are either owned by the program OR linked to its specializations.
+    // However, the standard backend pattern for "modules of a program" usually implies ownership.
+    // If you want to show linked modules too, we'd filter the full module list.
+    // For now, we stick to fetching modules owned by the program ID as per existing logic, but we can enhance display.
+    api.getModules().then(allModules => {
+        // Filter modules owned by this program
+        const programModules = (allModules || []).filter(m => m.program_id === progId);
+        setModules(programModules);
+    });
   }, []);
 
   const handleProgramClick = useCallback((prog) => {
@@ -206,7 +218,7 @@ export default function ProgramOverview({ initialData, clearInitialData }) {
   );
 }
 
-// --- VIEW: LIST ---
+// ... ProgramList component remains unchanged ...
 function ProgramList({ programs, lecturers, onSelect, refresh }) {
   const [showCreate, setShowCreate] = useState(false);
   const [levelFilter, setLevelFilter] = useState("Bachelor");
@@ -355,6 +367,17 @@ function ProgramWorkspace({ program, lecturers, specializations, modules, onBack
       return styles.catShared;
   };
 
+  // Helper to find linked specializations for a module IN THIS PROGRAM
+  const getLinkedSpecName = (module) => {
+      if (!module.specializations || module.specializations.length === 0) return "Common";
+
+      // Filter specs that belong to THIS program
+      const relevantSpecs = module.specializations.filter(s => s.program_id === program.id);
+
+      if (relevantSpecs.length === 0) return "Common"; // Linked to spec in another program? Or just none.
+      return relevantSpecs.map(s => s.acronym).join(", ");
+  };
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
@@ -432,7 +455,7 @@ function ProgramWorkspace({ program, lecturers, specializations, modules, onBack
 
         {activeTab === "MODULES" && (
           <div>
-            <h3>Modules</h3>
+            <h3>Curriculum Structure</h3>
 
             {/* --- MODULE GRID HEADER --- */}
             <div style={styles.moduleHeader}>
@@ -443,7 +466,7 @@ function ProgramWorkspace({ program, lecturers, specializations, modules, onBack
                 <div style={{textAlign:'center'}}>ECTS</div>
                 <div>Assessment</div>
                 <div>Room Type</div>
-                <div style={{textAlign:'right'}}>Status</div>
+                <div style={{textAlign:'right'}}>Specialization</div>
             </div>
 
             {/* --- MODULE GRID ROWS --- */}
@@ -463,7 +486,9 @@ function ProgramWorkspace({ program, lecturers, specializations, modules, onBack
                         <div style={styles.cellText}>{m.room_type}</div>
 
                         <div style={{textAlign:'right'}}>
-                            <span style={{fontSize:'0.8rem', color:'#16a34a', fontWeight:'600'}}>Linked</span>
+                            <span style={{fontSize:'0.85rem', color:'#475569', fontWeight:'500'}}>
+                                {getLinkedSpecName(m)}
+                            </span>
                         </div>
                     </div>
                 ))}

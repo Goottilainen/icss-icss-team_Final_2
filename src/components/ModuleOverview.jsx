@@ -26,7 +26,7 @@ const styles = {
   listHeader: {
     display: "grid",
     gridTemplateColumns: "80px 2fr 1.5fr 80px 100px 60px 1.2fr 1.2fr 110px",
-    gap: "15px", // ✅ ADDED: Matches listCard gap for perfect alignment
+    gap: "15px",
     padding: "0 25px",
     marginBottom: "5px",
     color: "#94a3b8",
@@ -44,37 +44,31 @@ const styles = {
     cursor: "pointer",
     transition: "background-color 0.2s ease",
     display: "grid",
-    gridTemplateColumns: "80px 2fr 1.5fr 80px 100px 60px 1.2fr 1.2fr 110px", // Exact match
+    gridTemplateColumns: "80px 2fr 1.5fr 80px 100px 60px 1.2fr 1.2fr 110px",
     alignItems: "center",
     padding: "16px 25px",
-    gap: "15px", // Gap matches Header
+    gap: "15px",
     boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
   },
 
   listCardHover: { backgroundColor: "#f1f5f9" },
 
-  // Typography & Cell Styling
+  // Typography
   codeText: { fontWeight: "700", color: "#3b82f6", fontSize: "0.95rem" },
   nameText: { fontWeight: "600", color: "#1e293b", lineHeight: "1.4" },
   programLink: { color: "#475569", cursor: "pointer", textDecoration: "underline", fontSize: "0.85rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-
-  // Centered Cells
   centeredCell: { textAlign: "center", fontSize: "0.9rem", color: "#64748b" },
-
-  // Standard Text Cells
   cellText: { fontSize: "0.9rem", color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
 
-  // Category Badges
+  // Badges
   catBadge: { padding: "4px 8px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "bold", textAlign: "center", textTransform: "uppercase", display: "inline-block" },
   catCore: { background: "#dbeafe", color: "#1e40af" },
   catElective: { background: "#fef3c7", color: "#92400e" },
   catShared: { background: "#f3e8ff", color: "#6b21a8" },
 
-  // Buttons & Forms
+  // Buttons
   btn: { padding: "8px 16px", borderRadius: "6px", border: "none", cursor: "pointer", fontSize: "0.9rem", fontWeight: "500", transition: "0.2s" },
   primaryBtn: { background: "#3b82f6", color: "white" },
-
-  // Action Buttons
   actionContainer: { display: "flex", gap: "8px", justifyContent: "flex-end" },
   actionBtn: { padding: "6px 12px", borderRadius: "6px", border: "none", cursor: "pointer", fontSize: "0.85rem", fontWeight: "600" },
   editBtn: { background: "#e2e8f0", color: "#475569" },
@@ -82,6 +76,18 @@ const styles = {
 
   // Modal
   overlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 },
+
+  // ✅ FIX: Ensure background color is explicit
+  modal: {
+    backgroundColor: "#ffffff",
+    padding: "30px",
+    borderRadius: "12px",
+    width: "650px",
+    maxWidth: "90%",
+    maxHeight: "90vh",
+    overflowY: "auto",
+    boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)"
+  },
 
   formGroup: { marginBottom: "15px" },
   label: { display: "block", marginBottom: "5px", fontWeight: "600", fontSize: "0.85rem", color: "#64748b" },
@@ -299,7 +305,7 @@ export default function ModuleOverview({ onNavigate }) {
       {/* MODAL */}
       {(formMode === "add" || formMode === "edit") && (
         <div style={styles.overlay}>
-            <div style={{...styles.modal, width:'650px'}}>
+            <div style={styles.modal}>
                 <div style={{display:'flex', justifyContent:'space-between', marginBottom:'20px'}}>
                     <h3 style={{margin:0}}>{formMode === "add" ? "Create Module" : "Edit Module"}</h3>
                     <button onClick={() => setFormMode("overview")} style={{border:'none', background:'transparent', fontSize:'1.5rem', cursor:'pointer'}}>×</button>
@@ -382,7 +388,7 @@ function DeleteConfirmationModal({ moduleName, onClose, onConfirm }) {
 
     return (
         <div style={styles.overlay}>
-            <div style={{...styles.modal, width:'450px'}}>
+            <div style={{...styles.modal, width:'450px', maxHeight:'none'}}>
                 <h3 style={{ marginTop: 0, color: "#991b1b" }}>⚠️ Delete Module?</h3>
                 <p style={{ color: "#4b5563", marginBottom: "20px", lineHeight:'1.5' }}>
                     Are you sure you want to delete <strong>{moduleName}</strong>?<br/>
