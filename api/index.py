@@ -2,13 +2,19 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload
 from typing import List
-from sqlalchemy import text
 
 # RELATIVE IMPORTS
 from . import models
 from . import schemas
 from . import auth
 from .database import engine, get_db
+
+# Initialize DB Tables (Standard)
+try:
+    models.Base.metadata.create_all(bind=engine)
+    print("✅ DB connected.")
+except Exception as e:
+    print("❌ DB Startup Error:", e)
 
 app = FastAPI(title="Study Program Backend", root_path="/api")
 
@@ -21,47 +27,6 @@ app.add_middleware(
 )
 
 
-# --- 🛠️ DATABASE FIXER ENDPOINT ---
-# VISIT THIS URL ONCE AFTER DEPLOYING: /api/fix-db
-@app.get("/fix-db")
-def fix_database():
-    results = []
-    try:
-        with engine.connect() as connection:
-            connection.commit()
-
-            # 1. Fix Study Programs (Add ID link)
-            # ✅ FIX: Added quotes around "ID" to match Postgres case-sensitivity
-            try:
-                connection.execute(
-                    text('ALTER TABLE study_programs ADD COLUMN head_of_program_id INTEGER REFERENCES lecturers("ID")'))
-                connection.execute(text("ALTER TABLE study_programs ALTER COLUMN head_of_program DROP NOT NULL"))
-                connection.commit()
-                results.append("✅ Added head_of_program_id to study_programs")
-            except Exception as e:
-                results.append(f"ℹ️ Study Programs check: {e}")
-
-            # 2. Fix Users (Add Lecturer Link)
-            # ✅ FIX: Added quotes around "ID"
-            try:
-                connection.execute(text('ALTER TABLE users ADD COLUMN lecturer_id INTEGER REFERENCES lecturers("ID")'))
-                connection.commit()
-                results.append("✅ Added lecturer_id to users")
-            except Exception as e:
-                results.append(f"ℹ️ Users check: {e}")
-
-        return {"status": "Database checks completed", "details": results}
-    except Exception as e:
-        return {"status": "Critical Error", "details": str(e)}
-
-
-# Initialize DB
-try:
-    models.Base.metadata.create_all(bind=engine)
-except Exception as e:
-    print("Startup DB Error:", e)
-
-
 @app.get("/")
 def root(): return {"message": "Backend Online"}
 
@@ -71,6 +36,7 @@ def root(): return {"message": "Backend Online"}
 def login(form_data: schemas.LoginRequest, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == form_data.email).first()
     if not user or not auth.verify_password(form_data.password, user.password_hash):
+        # Create default admin if strictly necessary for testing
         if not user and form_data.email == "admin@icss.com":
             hashed = auth.get_password_hash("admin")
             admin_user = models.User(email="admin@icss.com", password_hash=hashed, role="admin")
