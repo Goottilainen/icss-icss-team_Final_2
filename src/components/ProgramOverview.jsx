@@ -17,6 +17,11 @@ const DEGREE_STYLES = {
   "default": { bg: "#f1f5f9", color: "#64748b" }
 };
 
+// ✅ ADDED: Missing constants required for Module Form
+const STANDARD_ROOM_TYPES = ["Lecture Classroom", "Computer Lab", "Seminar"];
+const ASSESSMENT_TYPES = ["Written Exam", "Presentation", "Project", "Report"];
+const CATEGORY_TYPES = ["Core", "Shared", "Elective"];
+
 // --- STYLES ---
 const styles = {
   container: { padding: "20px", fontFamily: "'Inter', sans-serif", color: "#333", maxWidth: "1200px", margin: "0 auto" },
@@ -255,7 +260,6 @@ function ProgramList({ programs, lecturers, onSelect, refresh }) {
   };
 
   const handleLevelChange = (newLevel) => {
-      // Default degree type when switching level
       const defaultDegree = newLevel === "Bachelor" ? "B.Sc." : "M.Sc.";
       setNewProg({ ...newProg, level: newLevel, degree_type: defaultDegree });
   };
