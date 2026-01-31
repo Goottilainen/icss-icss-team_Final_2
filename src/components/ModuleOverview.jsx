@@ -153,7 +153,6 @@ export default function ModuleOverview({ onNavigate }) {
         semester: parseInt(draft.semester),
         assessment_type: draft.assessment_type,
         category: draft.category,
-        // ✅ FIX: Ensure integer or null
         program_id: draft.program_id ? parseInt(draft.program_id) : null,
         specialization_ids: draft.specialization_ids
     };
@@ -211,41 +210,45 @@ export default function ModuleOverview({ onNavigate }) {
 
       {/* List Container */}
       <div style={styles.listContainer}>
-        {filteredModules.map((m) => {
-            const prog = programs.find(p => p.id === m.program_id);
-            return (
-              <div
-                key={m.module_code}
-                style={{ ...styles.listCard, ...(hoverId === m.module_code ? styles.listCardHover : {}) }}
-                onMouseEnter={() => setHoverId(m.module_code)}
-                onMouseLeave={() => setHoverId(null)}
-              >
-                <div style={styles.codeText}>{m.module_code}</div>
-                <div style={styles.nameText}>{m.name}</div>
-                <div>
-                    {prog ? (
-                        <span
-                            style={styles.programLink}
-                            onClick={(e) => { e.stopPropagation(); handleProgramClick(prog.id); }}
-                        >
-                            {prog.name}
-                        </span>
-                    ) : (
-                        <span style={{...styles.cellText, fontStyle:'italic'}}>Global</span>
-                    )}
-                </div>
-                <div style={styles.cellText}>{m.semester}</div>
-                <div style={{fontWeight:'bold', fontSize:'0.9rem', color:'#475569'}}>{m.ects}</div>
-                <div style={styles.cellText}>{m.room_type}</div>
+        {loading ? (
+            <div style={{textAlign: 'center', padding: '40px', color: '#64748b'}}>Loading modules...</div>
+        ) : (
+            filteredModules.map((m) => {
+                const prog = programs.find(p => p.id === m.program_id);
+                return (
+                <div
+                    key={m.module_code}
+                    style={{ ...styles.listCard, ...(hoverId === m.module_code ? styles.listCardHover : {}) }}
+                    onMouseEnter={() => setHoverId(m.module_code)}
+                    onMouseLeave={() => setHoverId(null)}
+                >
+                    <div style={styles.codeText}>{m.module_code}</div>
+                    <div style={styles.nameText}>{m.name}</div>
+                    <div>
+                        {prog ? (
+                            <span
+                                style={styles.programLink}
+                                onClick={(e) => { e.stopPropagation(); handleProgramClick(prog.id); }}
+                            >
+                                {prog.name}
+                            </span>
+                        ) : (
+                            <span style={{...styles.cellText, fontStyle:'italic'}}>Global</span>
+                        )}
+                    </div>
+                    <div style={styles.cellText}>{m.semester}</div>
+                    <div style={{fontWeight:'bold', fontSize:'0.9rem', color:'#475569'}}>{m.ects}</div>
+                    <div style={styles.cellText}>{m.room_type}</div>
 
-                <div style={{textAlign: 'right'}}>
-                    <button style={styles.editBtn} onClick={() => openEdit(m)}>Edit</button>
-                    <button style={styles.deleteBtn} onClick={() => remove(m.module_code)}>Del</button>
+                    <div style={{textAlign: 'right'}}>
+                        <button style={styles.editBtn} onClick={() => openEdit(m)}>Edit</button>
+                        <button style={styles.deleteBtn} onClick={() => remove(m.module_code)}>Del</button>
+                    </div>
                 </div>
-              </div>
-            );
-        })}
-        {filteredModules.length === 0 && <div style={{ color: "#94a3b8", padding: "40px", textAlign: "center", fontStyle: "italic" }}>No modules found.</div>}
+                );
+            })
+        )}
+        {!loading && filteredModules.length === 0 && <div style={{ color: "#94a3b8", padding: "40px", textAlign: "center", fontStyle: "italic" }}>No modules found.</div>}
       </div>
 
       {/* MODAL */}
