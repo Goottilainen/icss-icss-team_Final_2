@@ -26,28 +26,27 @@ const styles = {
   toggleBtn: { padding: "6px 16px", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.9rem", fontWeight: "600", color: "#64748b", background: "transparent", transition: "all 0.2s" },
   toggleBtnActive: { background: "white", color: "#3b82f6", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" },
 
-  // LIST LAYOUT (Grid-based for perfect alignment)
+  // LIST LAYOUT
   listContainer: { display: "flex", flexDirection: "column", gap: "12px" },
 
   listCard: {
     background: "white",
     borderRadius: "8px",
-    border: "1px solid #e2e8f0",
+    border: "none", // Removed border for cleaner look
     cursor: "pointer",
-    transition: "background-color 0.2s ease", // Only animate background color
+    transition: "background-color 0.2s ease",
     // Grid layout: Status (Fixed) | Name (Flexible) | Metadata (Auto)
     display: "grid",
     gridTemplateColumns: "80px 1fr auto",
     alignItems: "center",
-    padding: "16px 20px",
+    padding: "16px 25px", // Slightly more padding
     gap: "20px",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+    boxShadow: "0 2px 8px rgba(0,0,0,0.08)" // Soft shadow instead of border
   },
 
-  // Hover State: Just slightly darker, no movement or glow
+  // Hover State: Distinct background darkening
   listCardHover: {
-    backgroundColor: "#f8fafc",
-    borderColor: "#cbd5e1"
+    backgroundColor: "#f1f5f9", // Darker gray
   },
 
   // Typography
@@ -55,8 +54,9 @@ const styles = {
   progSubtitle: { margin: 0, fontSize: "0.85rem", color: "#64748b", fontWeight: "500" },
 
   // Metadata Section (Right Side)
-  metaContainer: { display: "flex", alignItems: "center", gap: "20px", fontSize: "0.9rem", color: "#475569" },
-  metaItem: { display: "flex", alignItems: "center", gap: "6px" },
+  metaContainer: { display: "flex", alignItems: "center", gap: "25px", fontSize: "0.9rem", color: "#475569" },
+  metaItem: { display: "flex", alignItems: "center", gap: "6px", fontWeight: "500" },
+  metaLabel: { color: "#94a3b8", fontWeight: "400", fontSize: "0.85rem", textTransform: "uppercase", letterSpacing: "0.05em" },
   separator: { color: "#cbd5e1" },
 
   // Tabs
@@ -225,12 +225,21 @@ function ProgramList({ programs, lecturers, onSelect, refresh }) {
             {/* 3. Metadata Column */}
             <div style={styles.metaContainer}>
                 {p.location && (
-                    <div style={styles.metaItem}>Loc: {p.location}</div>
+                    <div style={styles.metaItem}>
+                        <span style={styles.metaLabel}>Location:</span>
+                        {p.location}
+                    </div>
                 )}
                 <span style={styles.separator}>|</span>
-                <div style={styles.metaItem}>Head: {p.head_of_program || "-"}</div>
+                <div style={styles.metaItem}>
+                    <span style={styles.metaLabel}>HoSP:</span>
+                    {p.head_of_program || "-"}
+                </div>
                 <span style={styles.separator}>|</span>
-                <div style={styles.metaItem}>Start: {formatDate(p.start_date)}</div>
+                <div style={styles.metaItem}>
+                    <span style={styles.metaLabel}>Start:</span>
+                    {formatDate(p.start_date)}
+                </div>
 
                 <div style={styles.ectsBadge}>{p.total_ects} ECTS</div>
             </div>
