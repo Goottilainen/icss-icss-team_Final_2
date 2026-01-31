@@ -1,115 +1,21 @@
-from pydantic import BaseModel, Field, EmailStr, ConfigDict, computed_field
-from typing import List, Optional, Dict, Any, Literal
+from pydantic import BaseModel, EmailStr
+from typing import List, Optional, Any
 
 
-# --- AUTH & USER ---
+# --- AUTH ---
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str
     role: str
 
 
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
-# --- AVAILABILITY ---
-class AvailabilityResponse(BaseModel):
-    id: int
-    lecturer_id: int
-    schedule_data: Dict[str, Any]
-    model_config = ConfigDict(from_attributes=True)
-
-
-class AvailabilityUpdate(BaseModel):
-    lecturer_id: int
-    schedule_data: Dict[str, Any]
-
-
-# --- PROGRAMS ---
-class StudyProgramCreate(BaseModel):
-    name: str
-    acronym: str
-    head_of_program_id: Optional[int] = None  # ✅ ID Based
-    start_date: str
-    total_ects: int
-    level: str = "Bachelor"
-    status: bool = True
-    location: Optional[str] = None
-    degree_type: Optional[str] = None
-
-
-class StudyProgramResponse(BaseModel):
-    id: int
-    name: str
-    acronym: str
-    start_date: str
-    total_ects: int
-    level: str
-    status: bool
-    location: Optional[str] = None
-    degree_type: Optional[str] = None
-    head_of_program_id: Optional[int] = None
-
-    # ✅ COMPUTED: Fetches name from DB relation so Frontend sees "Prof X" not "5"
-    head_lecturer: Optional['LecturerResponse'] = None
-
-    @computed_field
-    def head_of_program(self) -> str:
-        if self.head_lecturer:
-            return f"{self.head_lecturer.title} {self.head_lecturer.first_name} {self.head_lecturer.last_name}"
-        return "Unknown"
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-# ... [Keep Specialization, Module, Lecturer, Group, Room, Constraint schemas exactly as is] ...
-# Paste existing schemas here
-class SpecializationCreate(BaseModel):
-    name: str
-    acronym: str
-    start_date: str
-    status: bool = True
-    program_id: int
-
-
-class SpecializationResponse(SpecializationCreate):
-    id: int
-    study_program: Optional[str] = None
-    model_config = ConfigDict(from_attributes=True)
-
-
-# --- MODULES ---
-class ModuleCreate(BaseModel):
-    module_code: str
-    name: str
-    ects: int
-    room_type: str
-    semester: int
-    assessment_type: Optional[str] = None
-    category: Optional[str] = None
-    program_id: Optional[int] = None
-    specialization_ids: List[int] = []
-
-
-class ModuleResponse(BaseModel):
-    module_code: str
-    name: str
-    ects: int
-    room_type: str
-    semester: int
-    assessment_type: Optional[str] = None
-    category: Optional[str] = None
-    program_id: Optional[int] = None
-
-    specializations: List[SpecializationResponse] = []
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 # --- LECTURERS ---
-class LecturerCreate(BaseModel):
+class LecturerBase(BaseModel):
     first_name: str
     last_name: Optional[str] = None
     title: str
@@ -121,13 +27,90 @@ class LecturerCreate(BaseModel):
     teaching_load: Optional[str] = None
 
 
-class LecturerResponse(LecturerCreate):
+class LecturerCreate(LecturerBase):
+    pass
+
+
+class LecturerResponse(LecturerBase):
     id: int
-    model_config = ConfigDict(from_attributes=True)
+
+    class Config:
+        from_attributes = True
+
+
+# --- STUDY PROGRAMS ---
+class StudyProgramBase(BaseModel):
+    name: str
+    acronym: str
+    # head_of_program REMOVED
+    status: bool = True
+    start_date: str
+    total_ects: int
+    location: Optional[str] = None
+    level: str = "Bachelor"
+    degree_type: Optional[str] = None
+    head_of_program_id: Optional[int] = None
+
+
+class StudyProgramCreate(StudyProgramBase):
+    pass
+
+
+class StudyProgramResponse(StudyProgramBase):
+    id: int
+    # Nested object to show name in Frontend
+    head_lecturer: Optional[LecturerResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+# --- SPECIALIZATIONS ---
+class SpecializationBase(BaseModel):
+    name: str
+    acronym: str
+    start_date: str
+    program_id: Optional[int] = None
+    status: bool = True
+    study_program: Optional[str] = None
+
+
+class SpecializationCreate(SpecializationBase):
+    pass
+
+
+class SpecializationResponse(SpecializationBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+# --- MODULES ---
+class ModuleBase(BaseModel):
+    module_code: str
+    name: str
+    ects: int
+    room_type: str
+    assessment_type: Optional[str] = None
+    semester: int
+    category: Optional[str] = None
+    program_id: Optional[int] = None
+
+
+class ModuleCreate(ModuleBase):
+    specialization_ids: Optional[List[int]] = []
+
+
+class ModuleResponse(ModuleBase):
+    specializations: List[SpecializationResponse] = []
+
+    class Config:
+        from_attributes = True
 
 
 # --- GROUPS ---
-class GroupCreate(BaseModel):
+class GroupBase(BaseModel):
     name: str
     size: int
     description: Optional[str] = None
@@ -136,46 +119,79 @@ class GroupCreate(BaseModel):
     parent_group: Optional[str] = None
 
 
-class GroupResponse(GroupCreate):
+class GroupCreate(GroupBase):
+    pass
+
+
+class GroupResponse(GroupBase):
     id: int
-    model_config = ConfigDict(from_attributes=True)
+
+    class Config:
+        from_attributes = True
 
 
 # --- ROOMS ---
-class RoomCreate(BaseModel):
+class RoomBase(BaseModel):
     name: str
     capacity: int
     type: str
-    status: bool
+    status: bool = True
     equipment: Optional[str] = None
     location: Optional[str] = None
 
 
-class RoomResponse(RoomCreate):
+class RoomCreate(RoomBase):
+    pass
+
+
+class RoomResponse(RoomBase):
     id: int
-    model_config = ConfigDict(from_attributes=True)
+
+    class Config:
+        from_attributes = True
+
+
+# --- AVAILABILITY ---
+class AvailabilityUpdate(BaseModel):
+    lecturer_id: int
+    schedule_data: Any  # JSON grid
+
+
+class AvailabilityResponse(BaseModel):
+    id: int
+    lecturer_id: int
+    schedule_data: Any
+
+    class Config:
+        from_attributes = True
 
 
 # --- CONSTRAINTS ---
 class ConstraintTypeResponse(BaseModel):
     id: int
     name: str
-    active: bool
-    model_config = ConfigDict(from_attributes=True)
+
+    class Config:
+        from_attributes = True
 
 
-class SchedulerConstraintCreate(BaseModel):
+class SchedulerConstraintBase(BaseModel):
     constraint_type_id: int
     hardness: str
-    weight: Optional[int] = None
+    weight: Optional[int] = 10
     scope: str
     target_id: Optional[int] = None
-    config: Dict[str, Any] = {}
+    config: Any = {}
     is_enabled: bool = True
     notes: Optional[str] = None
 
 
-class SchedulerConstraintResponse(SchedulerConstraintCreate):
+class SchedulerConstraintCreate(SchedulerConstraintBase):
+    pass
+
+
+class SchedulerConstraintResponse(SchedulerConstraintBase):
     id: int
-    constraint_type: Optional[ConstraintTypeResponse] = None
-    model_config = ConfigDict(from_attributes=True)
+
+    class Config:
+        from_attributes = True
