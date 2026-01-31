@@ -1,6 +1,22 @@
 import React, { useState, useEffect, useCallback } from "react";
 import api from "../api";
 
+// --- CONSTANTS ---
+const DEGREE_OPTIONS = {
+  Bachelor: ["B.Sc.", "B.A.", "LL.B."],
+  Master: ["M.Sc.", "M.A.", "LL.M."]
+};
+
+const DEGREE_STYLES = {
+  "B.Sc.": { bg: "#e0f2fe", color: "#0369a1" }, // Sky Blue
+  "M.Sc.": { bg: "#e0f2fe", color: "#0369a1" },
+  "B.A.": { bg: "#ffe4e6", color: "#be123c" },  // Rose
+  "M.A.": { bg: "#ffe4e6", color: "#be123c" },
+  "LL.B.": { bg: "#fef3c7", color: "#b45309" }, // Amber
+  "LL.M.": { bg: "#fef3c7", color: "#b45309" },
+  "default": { bg: "#f1f5f9", color: "#64748b" }
+};
+
 // --- STYLES ---
 const styles = {
   container: { padding: "20px", fontFamily: "'Inter', sans-serif", color: "#333", maxWidth: "1200px", margin: "0 auto" },
@@ -29,9 +45,10 @@ const styles = {
   // --- MAIN LIST LAYOUT (PROGRAMS) ---
   listContainer: { display: "flex", flexDirection: "column", gap: "12px" },
 
+  // Added 70px column for Degree Type after Status
   listHeader: {
     display: "grid",
-    gridTemplateColumns: "90px 2fr 1.2fr 1.5fr 1fr 80px",
+    gridTemplateColumns: "90px 70px 2fr 1.2fr 1.5fr 1fr 80px",
     gap: "15px",
     padding: "0 25px",
     marginBottom: "5px",
@@ -50,7 +67,7 @@ const styles = {
     cursor: "pointer",
     transition: "background-color 0.15s ease",
     display: "grid",
-    gridTemplateColumns: "90px 2fr 1.2fr 1.5fr 1fr 80px",
+    gridTemplateColumns: "90px 70px 2fr 1.2fr 1.5fr 1fr 80px",
     alignItems: "center",
     padding: "18px 25px",
     gap: "15px",
@@ -59,11 +76,10 @@ const styles = {
 
   listCardHover: { backgroundColor: "#f1f5f9" },
 
-  // --- MODULE LIST LAYOUT (INSIDE TABS) ---
-  // Code | Name | Sem | Cat | ECTS | Assess | Room | Specialization | Actions
+  // --- MODULE LIST LAYOUT ---
   moduleHeader: {
     display: "grid",
-    gridTemplateColumns: "80px 3fr 80px 100px 60px 1.2fr 1.2fr 1.5fr 130px", // Increased actions col width
+    gridTemplateColumns: "80px 3fr 80px 100px 60px 1.2fr 1.2fr 1.5fr 130px",
     gap: "15px",
     padding: "10px 15px",
     background: "#f8fafc",
@@ -82,7 +98,7 @@ const styles = {
     background: "white",
     borderBottom: "1px solid #f1f5f9",
     display: "grid",
-    gridTemplateColumns: "80px 3fr 80px 100px 60px 1.2fr 1.2fr 1.5fr 130px", // Matches Header
+    gridTemplateColumns: "80px 3fr 80px 100px 60px 1.2fr 1.2fr 1.5fr 130px",
     alignItems: "center",
     padding: "12px 15px",
     gap: "15px",
@@ -92,8 +108,6 @@ const styles = {
   // Typography
   progTitle: { margin: 0, fontSize: "1rem", fontWeight: "600", color: "#1e293b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   progSubtitle: { margin: 0, fontSize: "0.85rem", color: "#64748b", fontWeight: "500" },
-
-  // Module Typography
   codeText: { fontWeight: "700", color: "#3b82f6", fontSize: "0.9rem" },
   nameText: { fontWeight: "600", color: "#1e293b", lineHeight: "1.3" },
   cellText: { fontSize: "0.85rem", color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
@@ -120,6 +134,9 @@ const styles = {
   statusInactive: { background: "#f1f5f9", color: "#94a3b8" },
   ectsBadge: { fontWeight:'bold', color:'#333', background:'#f1f5f9', padding:'6px 0', borderRadius:'6px', textAlign:'center', fontSize:'0.85rem' },
 
+  // Degree Badge
+  degreeBadge: { padding: "4px 0", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "bold", textAlign: "center", display: "block", width: "100%" },
+
   // Category Badges
   catBadge: { padding: "4px 8px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: "bold", textAlign: "center", textTransform: "uppercase", display: "inline-block" },
   catCore: { background: "#dbeafe", color: "#1e40af" },
@@ -136,10 +153,6 @@ const styles = {
   overlay: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 },
   modal: { backgroundColor: "#ffffff", padding: "30px", borderRadius: "12px", width: "650px", maxWidth: "90%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }
 };
-
-const STANDARD_ROOM_TYPES = ["Lecture Classroom", "Computer Lab", "Seminar"];
-const ASSESSMENT_TYPES = ["Written Exam", "Presentation", "Project", "Report"];
-const CATEGORY_TYPES = ["Core", "Shared", "Elective"];
 
 const formatDate = (isoDate) => {
   if (!isoDate) return "-";
@@ -227,7 +240,7 @@ function ProgramList({ programs, lecturers, onSelect, refresh }) {
   const [hoverId, setHoverId] = useState(null);
 
   const [newProg, setNewProg] = useState({
-      name: "", acronym: "", head_of_program: "",
+      name: "", acronym: "", head_of_program: "", degree_type: "B.Sc.",
       total_ects: 180, level: "Bachelor", status: true,
       start_date: "", location: ""
   });
@@ -239,6 +252,12 @@ function ProgramList({ programs, lecturers, onSelect, refresh }) {
         setShowCreate(false);
         refresh();
     } catch(e) { alert("Failed to create program."); }
+  };
+
+  const handleLevelChange = (newLevel) => {
+      // Default degree type when switching level
+      const defaultDegree = newLevel === "Bachelor" ? "B.Sc." : "M.Sc.";
+      setNewProg({ ...newProg, level: newLevel, degree_type: defaultDegree });
   };
 
   const filtered = programs.filter(p => {
@@ -271,6 +290,7 @@ function ProgramList({ programs, lecturers, onSelect, refresh }) {
 
       <div style={styles.listHeader}>
         <div>Status</div>
+        <div>Degree</div>
         <div>Program Name</div>
         <div>Location</div>
         <div>HoSP</div>
@@ -279,29 +299,38 @@ function ProgramList({ programs, lecturers, onSelect, refresh }) {
       </div>
 
       <div style={styles.listContainer}>
-        {filtered.map(p => (
-          <div
-            key={p.id}
-            style={{ ...styles.listCard, ...(hoverId === p.id ? styles.listCardHover : {}) }}
-            onClick={() => onSelect(p)}
-            onMouseEnter={() => setHoverId(p.id)}
-            onMouseLeave={() => setHoverId(null)}
-          >
-            <div>
-                <span style={{ ...styles.badge, ...(p.status ? styles.statusActive : styles.statusInactive) }}>
-                    {p.status ? "Active" : "Inactive"}
-                </span>
-            </div>
-            <div style={{minWidth: 0}}>
-                <h4 style={styles.progTitle}>{p.name}</h4>
-                <span style={styles.progSubtitle}>{p.acronym}</span>
-            </div>
-            <div style={styles.cellText}>{p.location || "-"}</div>
-            <div style={styles.cellText}>{p.head_of_program || "-"}</div>
-            <div style={styles.cellText}>{formatDate(p.start_date)}</div>
-            <div style={styles.ectsBadge}>{p.total_ects} ECTS</div>
-          </div>
-        ))}
+        {filtered.map(p => {
+            const degreeStyle = DEGREE_STYLES[p.degree_type] || DEGREE_STYLES["default"];
+            return (
+                <div
+                    key={p.id}
+                    style={{ ...styles.listCard, ...(hoverId === p.id ? styles.listCardHover : {}) }}
+                    onClick={() => onSelect(p)}
+                    onMouseEnter={() => setHoverId(p.id)}
+                    onMouseLeave={() => setHoverId(null)}
+                >
+                    <div>
+                        <span style={{ ...styles.badge, ...(p.status ? styles.statusActive : styles.statusInactive) }}>
+                            {p.status ? "Active" : "Inactive"}
+                        </span>
+                    </div>
+                    {/* Degree Badge */}
+                    <div>
+                        <span style={{ ...styles.degreeBadge, background: degreeStyle.bg, color: degreeStyle.color }}>
+                            {p.degree_type || "-"}
+                        </span>
+                    </div>
+                    <div style={{minWidth: 0}}>
+                        <h4 style={styles.progTitle}>{p.name}</h4>
+                        <span style={styles.progSubtitle}>{p.acronym}</span>
+                    </div>
+                    <div style={styles.cellText}>{p.location || "-"}</div>
+                    <div style={styles.cellText}>{p.head_of_program || "-"}</div>
+                    <div style={styles.cellText}>{formatDate(p.start_date)}</div>
+                    <div style={styles.ectsBadge}>{p.total_ects} ECTS</div>
+                </div>
+            );
+        })}
         {filtered.length === 0 && <div style={{ color: "#94a3b8", padding: "40px", textAlign: "center", fontStyle: "italic" }}>No programs found matching your search.</div>}
       </div>
 
@@ -309,11 +338,28 @@ function ProgramList({ programs, lecturers, onSelect, refresh }) {
         <div style={styles.overlay}>
             <div style={styles.modal}>
                 <h3 style={{marginTop:0}}>Create New Program</h3>
-                <input style={styles.input} placeholder="Program Name" value={newProg.name} onChange={e => setNewProg({...newProg, name: e.target.value})} />
+
+                {/* Degree Type & Name Selection */}
+                <div style={{display:'flex', gap:'10px'}}>
+                    <div style={{flex: 1}}>
+                        <select
+                            style={styles.select}
+                            value={newProg.degree_type}
+                            onChange={e => setNewProg({...newProg, degree_type: e.target.value})}
+                        >
+                            {DEGREE_OPTIONS[newProg.level].map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                    </div>
+                    <div style={{flex: 3}}>
+                        <input style={styles.input} placeholder="Program Name" value={newProg.name} onChange={e => setNewProg({...newProg, name: e.target.value})} />
+                    </div>
+                </div>
+
                 <div style={{display:'flex', gap:'10px'}}>
                     <input style={styles.input} placeholder="Acronym (e.g. CS)" value={newProg.acronym} onChange={e => setNewProg({...newProg, acronym: e.target.value})} />
-                    <select style={styles.select} value={newProg.level} onChange={e => setNewProg({...newProg, level: e.target.value})}>
-                        <option>Bachelor</option><option>Master</option>
+                    <select style={styles.select} value={newProg.level} onChange={e => handleLevelChange(e.target.value)}>
+                        <option value="Bachelor">Bachelor</option>
+                        <option value="Master">Master</option>
                     </select>
                 </div>
                 <div style={{display:'flex', gap:'10px'}}>
@@ -493,8 +539,25 @@ function ProgramWorkspace({ program, lecturers, specializations, modules, onBack
              </div>
 
              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", maxWidth: "800px" }}>
+                {/* Degree Type Selector in Edit Mode */}
+                <div>
+                    <label style={{ display: "block", color: "#64748b", fontSize: "0.85rem", marginBottom: "5px" }}>Degree Type</label>
+                    {isEditing ? (
+                        <select
+                            style={styles.select}
+                            value={editDraft.degree_type || ""}
+                            onChange={e => setEditDraft({...editDraft, degree_type: e.target.value})}
+                        >
+                            {DEGREE_OPTIONS[editDraft.level || "Bachelor"].map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                    ) : (
+                        <div style={{ fontSize: "1rem", fontWeight: "500" }}>{program.degree_type || "-"}</div>
+                    )}
+                </div>
+
                 <FieldDisplay label="Program Name" isEditing={isEditing} value={editDraft.name} onChange={v => setEditDraft({...editDraft, name: v})} />
                 <FieldDisplay label="Acronym" isEditing={isEditing} value={editDraft.acronym} onChange={v => setEditDraft({...editDraft, acronym: v})} />
+
                 <div>
                     <label style={{ display: "block", color: "#64748b", fontSize: "0.85rem", marginBottom: "5px" }}>Head of Program</label>
                     {isEditing ? (
@@ -568,7 +631,6 @@ function ProgramWorkspace({ program, lecturers, specializations, modules, onBack
                             </span>
                         </div>
 
-                        {/* ✅ FIX: Consistent Buttons */}
                         <div style={styles.actionContainer}>
                             <button style={{...styles.actionBtn, ...styles.editBtn}} onClick={() => openModuleEdit(m)}>Edit</button>
                             <button style={{...styles.actionBtn, ...styles.delBtn}} onClick={() => initiateModuleDelete(m)}>Delete</button>

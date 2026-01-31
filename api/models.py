@@ -24,6 +24,8 @@ class StudyProgram(Base):
     total_ects = Column(Integer, nullable=False)
     location = Column(String, nullable=True)
     level = Column(String, nullable=False, server_default="Bachelor")
+    # ✅ NEW FIELD: Type of Degree
+    degree_type = Column(String, nullable=True)
 
     specializations = relationship("Specialization", back_populates="program", cascade="all, delete-orphan")
     modules = relationship("Module", back_populates="program")

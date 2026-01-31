@@ -24,8 +24,9 @@ class StudyProgramCreate(BaseModel):
     total_ects: int
     level: str = "Bachelor"
     status: bool = True
-    # ✅ FIX: Added location so it saves to the database
     location: Optional[str] = None
+    # ✅ NEW FIELD
+    degree_type: Optional[str] = None
 
 
 class StudyProgramResponse(StudyProgramCreate):
