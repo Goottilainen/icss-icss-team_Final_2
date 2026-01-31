@@ -70,9 +70,14 @@ const styles = {
   modal: { backgroundColor: "#ffffff", padding: "30px", borderRadius: "12px", width: "650px", maxWidth: "90%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }
 };
 
+// ✅ UPDATED: Ensures leading zeros for dates (e.g., 15.01.2026)
 const formatDate = (isoDate) => {
   if (!isoDate) return "-";
-  return new Date(isoDate).toLocaleDateString("de-DE");
+  const d = new Date(isoDate);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}.${month}.${year}`;
 };
 
 export default function ProgramOverview({ initialData, clearInitialData, currentUserRole }) {
@@ -83,7 +88,7 @@ export default function ProgramOverview({ initialData, clearInitialData, current
   const [specializations, setSpecializations] = useState([]);
   const [modules, setModules] = useState([]);
 
-  // ✅ PERMISSION LOGIC (Fixing Case Sensitivity mismatch with Backend):
+  // ✅ PERMISSION LOGIC (Case Insensitive):
   const role = currentUserRole?.toLowerCase();
   const canEdit = ["admin", "pm", "hosp"].includes(role);
 
@@ -247,12 +252,14 @@ function ProgramList({ programs, lecturers, onSelect, refresh, canEdit }) {
                         <span style={styles.progSubtitle}>{p.acronym}</span>
                     </div>
                     <div style={styles.cellText}>{p.location || "-"}</div>
-                    {/* ✅ DISPLAY COMPUTED NAME (Uses nested head_lecturer object): */}
+
+                    {/* ✅ UPDATED: Displays Title, First Name, and Last Name */}
                     <div style={styles.cellText}>
                         {p.head_lecturer
-                            ? `${p.head_lecturer.title} ${p.head_lecturer.last_name}`
+                            ? `${p.head_lecturer.title} ${p.head_lecturer.first_name} ${p.head_lecturer.last_name}`
                             : "-"}
                     </div>
+
                     <div style={styles.cellText}>{formatDate(p.start_date)}</div>
                     <div style={styles.ectsBadge}>{p.total_ects} ECTS</div>
                 </div>
@@ -292,7 +299,7 @@ function ProgramList({ programs, lecturers, onSelect, refresh, canEdit }) {
                     <input type="date" style={styles.input} value={newProg.start_date} onChange={e => setNewProg({...newProg, start_date: e.target.value})} />
                     <input style={styles.input} placeholder="Location (e.g. Berlin)" value={newProg.location} onChange={e => setNewProg({...newProg, location: e.target.value})} />
                 </div>
-                {/* ✅ Link via ID as per new Schema */}
+
                 <select
                     style={styles.select}
                     value={newProg.head_of_program_id || ""}
@@ -502,8 +509,9 @@ function ProgramWorkspace({ program, lecturers, specializations, modules, onBack
                         </select>
                     ) : (
                         <div style={{ fontWeight: "500" }}>
+                            {/* ✅ UPDATED: Displays Title, First Name, and Last Name */}
                             {program.head_lecturer
-                                ? `${program.head_lecturer.title} ${program.head_lecturer.last_name}`
+                                ? `${program.head_lecturer.title} ${program.head_lecturer.first_name} ${program.head_lecturer.last_name}`
                                 : "-"}
                         </div>
                     )}
