@@ -74,6 +74,7 @@ const styles = {
 const formatDate = (isoDate) => {
   if (!isoDate) return "-";
   const d = new Date(isoDate);
+  if (isNaN(d.getTime())) return isoDate; // Fallback if not a standard date
   const day = String(d.getDate()).padStart(2, '0');
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const year = d.getFullYear();
@@ -88,9 +89,19 @@ export default function ProgramOverview({ initialData, clearInitialData, current
   const [specializations, setSpecializations] = useState([]);
   const [modules, setModules] = useState([]);
 
-  // ✅ PERMISSION LOGIC (Case Insensitive):
+  // ✅ PERMISSION LOGIC (Case Insensitive FIX):
   const role = currentUserRole?.toLowerCase();
-  const canEdit = ["admin", "pm", "hosp"].includes(role);
+  const isPM = ["admin", "pm"].includes(role);
+
+  // Helper to check if a user can edit a SPECIFIC program
+  const canEditProgram = (program) => {
+    if (isPM) return true;
+    if (role === "hosp") {
+        const loggedInLecturerId = parseInt(localStorage.getItem("lecturerId"));
+        return program.head_of_program_id === loggedInLecturerId;
+    }
+    return false;
+  };
 
   const refreshNestedData = useCallback((progId) => {
     api.getSpecializations().then(res => setSpecializations((res || []).filter(s => s.program_id === progId)));
@@ -142,7 +153,8 @@ export default function ProgramOverview({ initialData, clearInitialData, current
           lecturers={lecturers}
           onSelect={handleProgramClick}
           refresh={loadData}
-          canEdit={canEdit}
+          isPM={isPM}
+          canEditProgram={canEditProgram}
         />
       ) : (
         <ProgramWorkspace
@@ -153,14 +165,14 @@ export default function ProgramOverview({ initialData, clearInitialData, current
           onBack={handleBack}
           refreshSpecs={() => refreshNestedData(selectedProgram.id)}
           onUpdateProgram={(updated) => setSelectedProgram(updated)}
-          canEdit={canEdit}
+          canEdit={canEditProgram(selectedProgram)}
         />
       )}
     </div>
   );
 }
 
-function ProgramList({ programs, lecturers, onSelect, refresh, canEdit }) {
+function ProgramList({ programs, lecturers, onSelect, refresh, isPM, canEditProgram }) {
   const [showCreate, setShowCreate] = useState(false);
   const [levelFilter, setLevelFilter] = useState("Bachelor");
   const [searchQuery, setSearchQuery] = useState("");
@@ -211,7 +223,7 @@ function ProgramList({ programs, lecturers, onSelect, refresh, canEdit }) {
                 onChange={e => setSearchQuery(e.target.value)}
             />
         </div>
-        {canEdit && (
+        {isPM && (
             <button style={{ ...styles.btn, ...styles.primaryBtn }} onClick={() => setShowCreate(true)}>+ New Program</button>
         )}
       </div>
@@ -229,10 +241,15 @@ function ProgramList({ programs, lecturers, onSelect, refresh, canEdit }) {
       <div style={styles.listContainer}>
         {filtered.map(p => {
             const degreeStyle = DEGREE_STYLES[p.degree_type] || DEGREE_STYLES["default"];
+            const hasEditRights = canEditProgram(p);
             return (
                 <div
                     key={p.id}
-                    style={{ ...styles.listCard, ...(hoverId === p.id ? styles.listCardHover : {}) }}
+                    style={{
+                      ...styles.listCard,
+                      ...(hoverId === p.id ? styles.listCardHover : {}),
+                      borderLeft: hasEditRights ? '4px solid #3b82f6' : '4px solid transparent'
+                    }}
                     onClick={() => onSelect(p)}
                     onMouseEnter={() => setHoverId(p.id)}
                     onMouseLeave={() => setHoverId(null)}
@@ -253,7 +270,7 @@ function ProgramList({ programs, lecturers, onSelect, refresh, canEdit }) {
                     </div>
                     <div style={styles.cellText}>{p.location || "-"}</div>
 
-                    {/* ✅ UPDATED: Displays Title, First Name, and Last Name */}
+                    {/* ✅ UPDATED: Full HoSP Name rendering */}
                     <div style={styles.cellText}>
                         {p.head_lecturer
                             ? `${p.head_lecturer.title} ${p.head_lecturer.first_name} ${p.head_lecturer.last_name}`
@@ -509,7 +526,7 @@ function ProgramWorkspace({ program, lecturers, specializations, modules, onBack
                         </select>
                     ) : (
                         <div style={{ fontWeight: "500" }}>
-                            {/* ✅ UPDATED: Displays Title, First Name, and Last Name */}
+                            {/* ✅ UPDATED: Full HoSP Name rendering */}
                             {program.head_lecturer
                                 ? `${program.head_lecturer.title} ${program.head_lecturer.first_name} ${program.head_lecturer.last_name}`
                                 : "-"}
