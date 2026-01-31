@@ -15,7 +15,7 @@ class AvailabilityUpdate(BaseModel):
     schedule_data: Dict[str, Any]
 
 
-# --- PROGRAMS (CRITICAL FIX HERE) ---
+# --- PROGRAMS ---
 class StudyProgramCreate(BaseModel):
     name: str
     acronym: str
@@ -23,8 +23,9 @@ class StudyProgramCreate(BaseModel):
     start_date: str
     total_ects: int
     level: str = "Bachelor"
-    # ✅ FIX: This ensures 'status' is accepted from frontend and sent back in response
     status: bool = True
+    # ✅ FIX: Added location so it saves to the database
+    location: Optional[str] = None
 
 
 class StudyProgramResponse(StudyProgramCreate):

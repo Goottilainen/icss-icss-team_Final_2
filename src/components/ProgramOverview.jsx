@@ -124,6 +124,7 @@ function ProgramList({ programs, lecturers, onSelect, refresh }) {
   const handleCreate = async () => {
     if(!newProg.name || !newProg.acronym) return alert("Name and Acronym are required.");
     try {
+        // location and status are now correctly passed
         await api.createProgram(newProg);
         setShowCreate(false);
         refresh();
@@ -178,13 +179,19 @@ function ProgramList({ programs, lecturers, onSelect, refresh }) {
                 </div>
                 <div style={{display:'flex', gap:'10px'}}>
                     <input type="date" style={styles.input} value={newProg.start_date} onChange={e => setNewProg({...newProg, start_date: e.target.value})} />
-                    <input style={styles.input} placeholder="Location" value={newProg.location} onChange={e => setNewProg({...newProg, location: e.target.value})} />
+                    <input style={styles.input} placeholder="Location (e.g. Berlin)" value={newProg.location} onChange={e => setNewProg({...newProg, location: e.target.value})} />
                 </div>
                 <select style={styles.select} value={newProg.head_of_program} onChange={e => setNewProg({...newProg, head_of_program: e.target.value})}>
                     <option value="">-- Select Head --</option>
                     {lecturers.map(l => <option key={l.id} value={`${l.first_name} ${l.last_name}`}>{l.first_name} {l.last_name}</option>)}
                 </select>
-                <input type="number" style={styles.input} placeholder="ECTS" value={newProg.total_ects} onChange={e => setNewProg({...newProg, total_ects: e.target.value})} />
+                <div style={{display:'flex', gap:'10px', alignItems:'center', marginBottom:'15px'}}>
+                    <input type="number" style={{...styles.input, marginBottom:0}} placeholder="ECTS" value={newProg.total_ects} onChange={e => setNewProg({...newProg, total_ects: e.target.value})} />
+                    <label style={{display:'flex', alignItems:'center', gap:'10px', cursor:'pointer', whiteSpace:'nowrap'}}>
+                        <input type="checkbox" checked={newProg.status} onChange={e => setNewProg({...newProg, status: e.target.checked})} />
+                        Active Status
+                    </label>
+                </div>
 
                 <div style={{display:'flex', justifyContent:'flex-end', gap:'10px', marginTop:'20px'}}>
                     <button style={{...styles.btn, ...styles.secondaryBtn}} onClick={() => setShowCreate(false)}>Cancel</button>
@@ -201,19 +208,16 @@ function ProgramList({ programs, lecturers, onSelect, refresh }) {
 function ProgramWorkspace({ program, lecturers, specializations, modules, onBack, refreshSpecs, onUpdateProgram }) {
   const [activeTab, setActiveTab] = useState("INFO");
   const [isEditing, setIsEditing] = useState(false);
-
-  // Edit State
   const [editDraft, setEditDraft] = useState({});
 
   useEffect(() => {
-    // Reset draft when program changes
     setEditDraft({ ...program });
   }, [program]);
 
   const handleSaveInfo = async () => {
     try {
         await api.updateProgram(program.id, editDraft);
-        onUpdateProgram(editDraft); // Update parent state
+        onUpdateProgram(editDraft);
         setIsEditing(false);
     } catch(e) { alert("Failed to update program."); }
   };
@@ -222,7 +226,7 @@ function ProgramWorkspace({ program, lecturers, specializations, modules, onBack
       if(!window.confirm(`Type DELETE to confirm deleting ${program.name}`)) return;
       try {
           await api.deleteProgram(program.id);
-          onBack(); // Go back to list
+          onBack();
       } catch(e) { alert("Error deleting."); }
   };
 
@@ -252,7 +256,6 @@ function ProgramWorkspace({ program, lecturers, specializations, modules, onBack
 
       <div style={{ background: "white", padding: "30px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
 
-        {/* --- TAB: GENERAL INFO --- */}
         {activeTab === "INFO" && (
           <div>
              <div style={{display:'flex', justifyContent:'space-between', marginBottom:'20px'}}>
@@ -270,7 +273,6 @@ function ProgramWorkspace({ program, lecturers, specializations, modules, onBack
                 <FieldDisplay label="Program Name" isEditing={isEditing} value={editDraft.name} onChange={v => setEditDraft({...editDraft, name: v})} />
                 <FieldDisplay label="Acronym" isEditing={isEditing} value={editDraft.acronym} onChange={v => setEditDraft({...editDraft, acronym: v})} />
 
-                {/* Dropdown for Head */}
                 <div>
                     <label style={{ display: "block", color: "#64748b", fontSize: "0.85rem", marginBottom: "5px" }}>Head of Program</label>
                     {isEditing ? (
@@ -284,7 +286,6 @@ function ProgramWorkspace({ program, lecturers, specializations, modules, onBack
                 <FieldDisplay label="Start Date" type="date" isEditing={isEditing} value={editDraft.start_date} onChange={v => setEditDraft({...editDraft, start_date: v})} />
                 <FieldDisplay label="Location" isEditing={isEditing} value={editDraft.location} onChange={v => setEditDraft({...editDraft, location: v})} />
 
-                {/* Status Checkbox */}
                 <div>
                     <label style={{ display: "block", color: "#64748b", fontSize: "0.85rem", marginBottom: "5px" }}>Status</label>
                     {isEditing ? (
@@ -302,12 +303,10 @@ function ProgramWorkspace({ program, lecturers, specializations, modules, onBack
           </div>
         )}
 
-        {/* --- TAB: SPECIALIZATIONS --- */}
         {activeTab === "SPECS" && (
             <SpecializationsManager programId={program.id} specializations={specializations} refresh={refreshSpecs} />
         )}
 
-        {/* --- TAB: MODULES --- */}
         {activeTab === "MODULES" && (
           <div>
             <h3>Curriculum Structure</h3>
@@ -328,7 +327,6 @@ function ProgramWorkspace({ program, lecturers, specializations, modules, onBack
   );
 }
 
-// --- HELPER: Field Display ---
 const FieldDisplay = ({ label, value, onChange, isEditing, type = "text" }) => (
     <div>
         <label style={{ display: "block", color: "#64748b", fontSize: "0.85rem", marginBottom: "5px" }}>{label}</label>
@@ -345,12 +343,15 @@ const FieldDisplay = ({ label, value, onChange, isEditing, type = "text" }) => (
     </div>
 );
 
-// --- HELPER: Specializations Manager ---
+// --- HELPER: Specializations Manager (Fixed Status & Editing) ---
 function SpecializationsManager({ programId, specializations, refresh }) {
     const [newSpec, setNewSpec] = useState({ name: "", acronym: "", start_date: "", status: true });
+    const [editingSpecId, setEditingSpecId] = useState(null);
+    const [editDraft, setEditDraft] = useState({});
 
     const handleAdd = async () => {
         if(!newSpec.name) return;
+        // Ensure program_id is passed so it connects in DB
         await api.createSpecialization({ ...newSpec, program_id: programId });
         setNewSpec({ name: "", acronym: "", start_date: "", status: true });
         refresh();
@@ -362,8 +363,23 @@ function SpecializationsManager({ programId, specializations, refresh }) {
         refresh();
     };
 
+    const startEdit = (spec) => {
+        setEditingSpecId(spec.id);
+        setEditDraft({ ...spec });
+    };
+
+    const saveEdit = async () => {
+        try {
+            // New api.js method must match index.py PUT
+            await api.updateSpecialization(editingSpecId, editDraft);
+            setEditingSpecId(null);
+            refresh();
+        } catch(e) { alert("Update failed"); }
+    };
+
     return (
         <div>
+            {/* Add New Row */}
             <div style={{background:'#f8fafc', padding:'15px', borderRadius:'8px', marginBottom:'20px', display:'flex', gap:'10px', alignItems:'flex-end'}}>
                 <div style={{flex:2}}>
                     <label style={{fontSize:'0.8rem', fontWeight:'bold'}}>Name</label>
@@ -376,6 +392,13 @@ function SpecializationsManager({ programId, specializations, refresh }) {
                 <div style={{flex:1}}>
                     <label style={{fontSize:'0.8rem', fontWeight:'bold'}}>Start Date</label>
                     <input type="date" style={{...styles.input, marginBottom:0}} value={newSpec.start_date} onChange={e => setNewSpec({...newSpec, start_date: e.target.value})} />
+                </div>
+                <div style={{flex:0.5}}>
+                    <label style={{fontSize:'0.8rem', fontWeight:'bold'}}>Status</label>
+                    <select style={{...styles.input, marginBottom:0}} value={newSpec.status} onChange={e => setNewSpec({...newSpec, status: e.target.value === 'true'})}>
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                    </select>
                 </div>
                 <button style={{...styles.btn, ...styles.primaryBtn, height:'42px'}} onClick={handleAdd}>Add Spec</button>
             </div>
@@ -391,19 +414,45 @@ function SpecializationsManager({ programId, specializations, refresh }) {
                     </tr>
                 </thead>
                 <tbody>
-                    {specializations.map(s => (
-                        <tr key={s.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                            <td style={{ padding: "12px 10px" }}>{s.name}</td>
-                            <td style={{ padding: "12px 10px", fontWeight: "600" }}>{s.acronym}</td>
-                            <td style={{ padding: "12px 10px" }}>{formatDate(s.start_date)}</td>
-                            <td style={{ padding: "12px 10px" }}>
-                                <span style={{ ...styles.badge, ...(s.status ? styles.statusActive : styles.statusInactive) }}>{s.status ? "Active" : "Inactive"}</span>
-                            </td>
-                            <td style={{ padding: "12px 10px", textAlign: "right" }}>
-                                <button style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer" }} onClick={() => handleDelete(s.id)}>Remove</button>
-                            </td>
-                        </tr>
-                    ))}
+                    {specializations.map(s => {
+                        const isEditing = editingSpecId === s.id;
+                        return (
+                            <tr key={s.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                                <td style={{ padding: "12px 10px" }}>
+                                    {isEditing ? <input style={styles.input} value={editDraft.name} onChange={e => setEditDraft({...editDraft, name: e.target.value})} /> : s.name}
+                                </td>
+                                <td style={{ padding: "12px 10px", fontWeight: "600" }}>
+                                    {isEditing ? <input style={styles.input} value={editDraft.acronym} onChange={e => setEditDraft({...editDraft, acronym: e.target.value})} /> : s.acronym}
+                                </td>
+                                <td style={{ padding: "12px 10px" }}>
+                                    {isEditing ? <input type="date" style={styles.input} value={editDraft.start_date} onChange={e => setEditDraft({...editDraft, start_date: e.target.value})} /> : formatDate(s.start_date)}
+                                </td>
+                                <td style={{ padding: "12px 10px" }}>
+                                    {isEditing ? (
+                                        <select style={styles.input} value={editDraft.status} onChange={e => setEditDraft({...editDraft, status: e.target.value === 'true'})}>
+                                            <option value="true">Active</option>
+                                            <option value="false">Inactive</option>
+                                        </select>
+                                    ) : (
+                                        <span style={{ ...styles.badge, ...(s.status ? styles.statusActive : styles.statusInactive) }}>{s.status ? "Active" : "Inactive"}</span>
+                                    )}
+                                </td>
+                                <td style={{ padding: "12px 10px", textAlign: "right" }}>
+                                    {isEditing ? (
+                                        <div style={{display:'flex', gap:'5px', justifyContent:'flex-end'}}>
+                                            <button style={{...styles.btn, ...styles.primaryBtn, padding:'4px 8px'}} onClick={saveEdit}>Save</button>
+                                            <button style={{...styles.btn, background:'#ccc', padding:'4px 8px'}} onClick={() => setEditingSpecId(null)}>Cancel</button>
+                                        </div>
+                                    ) : (
+                                        <div style={{display:'flex', gap:'5px', justifyContent:'flex-end'}}>
+                                            <button style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", fontWeight:600 }} onClick={() => startEdit(s)}>Edit</button>
+                                            <button style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontWeight:600 }} onClick={() => handleDelete(s.id)}>Remove</button>
+                                        </div>
+                                    )}
+                                </td>
+                            </tr>
+                        );
+                    })}
                     {specializations.length === 0 && <tr><td colSpan="5" style={{padding:'20px', textAlign:'center', color:'#94a3b8'}}>No specializations yet.</td></tr>}
                 </tbody>
             </table>

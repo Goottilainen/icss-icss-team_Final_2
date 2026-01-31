@@ -19,7 +19,6 @@ app.add_middleware(
 )
 
 try:
-    # Safely create tables if they don't exist
     models.Base.metadata.create_all(bind=engine)
     print("✅ DB connected.")
 except Exception as e:
@@ -58,23 +57,19 @@ def update_lecturer(id: int, l: schemas.LecturerCreate, db: Session = Depends(ge
 @app.delete("/lecturers/{id}")
 def delete_lecturer(id: int, db: Session = Depends(get_db)):
     row = db.query(models.Lecturer).filter(models.Lecturer.id == id).first()
-    if row:
-        db.delete(row)
-        db.commit()
+    if row: db.delete(row); db.commit()
     return {"ok": True}
 
 
 # --- MODULES ---
 @app.get("/modules/", response_model=List[schemas.ModuleResponse])
 def read_modules(db: Session = Depends(get_db)):
-    # Important: Load specializations so they appear in the JSON
     return db.query(models.Module).options(joinedload(models.Module.specializations)).all()
 
 
 @app.post("/modules/", response_model=schemas.ModuleResponse)
 def create_module(m: schemas.ModuleCreate, db: Session = Depends(get_db)):
     spec_ids = m.specialization_ids
-    # Separate spec IDs from the main module data
     module_data = m.model_dump(exclude={"specialization_ids"})
 
     new_module = models.Module(**module_data)
@@ -99,7 +94,6 @@ def update_module(code: str, m: schemas.ModuleCreate, db: Session = Depends(get_
 
     for k, v in module_data.items(): setattr(row, k, v)
 
-    # Update Many-to-Many
     specs = db.query(models.Specialization).filter(models.Specialization.id.in_(spec_ids)).all()
     row.specializations = specs
 
@@ -157,6 +151,17 @@ def read_specs(db: Session = Depends(get_db)):
 def create_spec(s: schemas.SpecializationCreate, db: Session = Depends(get_db)):
     row = models.Specialization(**s.model_dump())
     db.add(row);
+    db.commit();
+    db.refresh(row)
+    return row
+
+
+# ✅ FIX: Added PUT endpoint for updating specializations
+@app.put("/specializations/{id}", response_model=schemas.SpecializationResponse)
+def update_spec(id: int, s: schemas.SpecializationCreate, db: Session = Depends(get_db)):
+    row = db.query(models.Specialization).filter(models.Specialization.id == id).first()
+    if not row: raise HTTPException(404)
+    for k, v in s.model_dump().items(): setattr(row, k, v)
     db.commit();
     db.refresh(row)
     return row
