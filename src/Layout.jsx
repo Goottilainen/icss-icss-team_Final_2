@@ -3,12 +3,10 @@ import api from "./api";
 import "./App.css";
 
 const Layout = ({ activeTab, setActiveTab, children, currentUserRole, setCurrentUserRole }) => {
-  // Aseguramos que role sea string para evitar errores
   const role = (currentUserRole || "").toLowerCase();
 
-  // Función simple para renderizar links según permisos
   const NavLink = ({ id, icon, label, rolesAllowed = [] }) => {
-    // Si la lista de permitidos no está vacía y el rol no está, ocultamos
+    // Si la lista de permitidos tiene roles y el mío no está, adiós.
     if (rolesAllowed.length > 0 && !rolesAllowed.includes(role)) {
       return null;
     }
@@ -30,7 +28,6 @@ const Layout = ({ activeTab, setActiveTab, children, currentUserRole, setCurrent
     let email = "";
     const password = "password";
 
-    // Mapeo simple de usuarios
     if (newRole === "PM") email = "pm@icss.com";
     else if (newRole === "HoSP") email = "hosp@icss.com";
     else if (newRole === "Lecturer") email = "lecturer@icss.com";
@@ -52,16 +49,16 @@ const Layout = ({ activeTab, setActiveTab, children, currentUserRole, setCurrent
       window.location.reload();
     } catch (err) {
       console.error(err);
-      alert("Login Error. Try again.");
+      alert("Login Error");
     }
   };
 
-  // Valor para el dropdown
-  let dropdownValue = "Guest";
-  if (role === "admin" || role === "pm") dropdownValue = "PM";
-  else if (role === "hosp") dropdownValue = "HoSP";
-  else if (role === "lecturer") dropdownValue = "Lecturer";
-  else if (role === "student") dropdownValue = "Student";
+  // Valor del dropdown
+  let dropdownVal = "Guest";
+  if (role === "admin" || role === "pm") dropdownVal = "PM";
+  else if (role === "hosp") dropdownVal = "HoSP";
+  else if (role === "lecturer") dropdownVal = "Lecturer";
+  else if (role === "student") dropdownVal = "Student";
 
   return (
     <div className="app-container">
@@ -76,7 +73,7 @@ const Layout = ({ activeTab, setActiveTab, children, currentUserRole, setCurrent
           <div className="nav-section-title">People & Groups</div>
           <NavLink id="lecturers" label="Lecturers" rolesAllowed={["admin", "pm", "hosp", "lecturer", "student"]} />
 
-          {/* ✅ AQUÍ ESTÁ: Student y todos los demás permitidos */}
+          {/* ✅ AQUÍ ESTÁ: Student incluido al mismo nivel que Admin */}
           <NavLink id="groups" label="Student Groups" rolesAllowed={["admin", "pm", "hosp", "lecturer", "student"]} />
 
           <div className="nav-section-title">Facilities</div>
@@ -91,7 +88,7 @@ const Layout = ({ activeTab, setActiveTab, children, currentUserRole, setCurrent
           <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#94a3b8', display: 'block', marginBottom: '8px' }}>
             Switch Role:
           </label>
-          <select value={dropdownValue} onChange={handleRoleChange} style={{
+          <select value={dropdownVal} onChange={handleRoleChange} style={{
               background: '#1e293b', color: 'white', border: '1px solid #475569',
               padding: '8px', borderRadius: '6px', width: '100%', cursor: 'pointer'
             }}>
