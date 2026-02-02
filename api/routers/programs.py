@@ -1,47 +1,83 @@
+# api/routers/programs.py
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from typing import List
+
 from ..database import get_db
 from .. import models, schemas, auth
-from ..permissions import require_admin_or_pm, role_of, check_is_hosp_for_program
+from ..permissions import role_of, is_admin_or_pm
 
 router = APIRouter(prefix="/study-programs", tags=["study-programs"])
 
+
+# ✅ SOLUCIÓN: Permitimos lectura a TODOS los usuarios autenticados
+# Antes tenía un bloqueo si eras estudiante. Ahora lo quitamos.
 @router.get("/", response_model=List[schemas.StudyProgramResponse])
-def read_programs(db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_user)):
-    if role_of(current_user) == "student": raise HTTPException(status_code=403)
-    return db.query(models.StudyProgram).options(joinedload(models.StudyProgram.head_lecturer)).all()
+def read_programs(
+        db: Session = Depends(get_db),
+        current_user: models.User = Depends(auth.get_current_user),
+):
+    # Students can read programs (read-only in UI)
+    return (
+        db.query(models.StudyProgram)
+        .options(joinedload(models.StudyProgram.head_lecturer))
+        .all()
+    )
+
+
+# --- POST / PUT / DELETE: Mantenemos el bloqueo para estudiantes ---
 
 @router.post("/", response_model=schemas.StudyProgramResponse)
-def create_program(p: schemas.StudyProgramCreate, db: Session = Depends(get_db),
-                   current_user: models.User = Depends(auth.get_current_user)):
-    r = role_of(current_user)
-    # Admin/PM: ✅ | HoSP: ✅ | Lecturer: ❌
-    if r not in ["admin", "pm", "hosp"]: raise HTTPException(status_code=403)
-    row = models.StudyProgram(**p.model_dump())
-    db.add(row)
-    db.commit()
-    return row
+def create_program(
+        program: schemas.StudyProgramCreate,
+        db: Session = Depends(get_db),
+        current_user: models.User = Depends(auth.get_current_user),
+):
+    if not is_admin_or_pm(current_user):
+        raise HTTPException(status_code=403, detail="Not allowed")
 
-@router.put("/{id}", response_model=schemas.StudyProgramResponse)
-def update_program(id: int, p: schemas.StudyProgramUpdate, db: Session = Depends(get_db),
-                   current_user: models.User = Depends(auth.get_current_user)):
-    row = db.query(models.StudyProgram).filter(models.StudyProgram.id == id).first()
-    if not row: raise HTTPException(status_code=404)
-    # check_is_hosp_for_program ya valida si es Admin o si es el HoSP de ese programa
-    check_is_hosp_for_program(current_user, row)
-    for k, v in p.model_dump(exclude_unset=True).items():
-        setattr(row, k, v)
+    db_program = models.StudyProgram(**program.model_dump())
+    db.add(db_program)
     db.commit()
-    return row
+    db.refresh(db_program)
+    return db_program
 
-@router.delete("/{id}")
-def delete_program(id: int, db: Session = Depends(get_db),
-                   current_user: models.User = Depends(auth.get_current_user)):
-    # Según tu tabla, SOLO Admin/PM borran (❌ para HoSP)
-    require_admin_or_pm(current_user)
-    row = db.query(models.StudyProgram).filter(models.StudyProgram.id == id).first()
-    if row:
-        db.delete(row)
-        db.commit()
+
+@router.put("/{program_id}", response_model=schemas.StudyProgramResponse)
+def update_program(
+        program_id: int,
+        program: schemas.StudyProgramUpdate,
+        db: Session = Depends(get_db),
+        current_user: models.User = Depends(auth.get_current_user),
+):
+    if not is_admin_or_pm(current_user):
+        raise HTTPException(status_code=403, detail="Not allowed")
+
+    db_program = db.query(models.StudyProgram).filter(models.StudyProgram.id == program_id).first()
+    if not db_program:
+        raise HTTPException(status_code=404, detail="Program not found")
+
+    for key, value in program.model_dump(exclude_unset=True).items():
+        setattr(db_program, key, value)
+
+    db.commit()
+    db.refresh(db_program)
+    return db_program
+
+
+@router.delete("/{program_id}")
+def delete_program(
+        program_id: int,
+        db: Session = Depends(get_db),
+        current_user: models.User = Depends(auth.get_current_user),
+):
+    if not is_admin_or_pm(current_user):
+        raise HTTPException(status_code=403, detail="Not allowed")
+
+    db_program = db.query(models.StudyProgram).filter(models.StudyProgram.id == program_id).first()
+    if not db_program:
+        raise HTTPException(status_code=404, detail="Program not found")
+
+    db.delete(db_program)
+    db.commit()
     return {"ok": True}

@@ -97,6 +97,10 @@ export default function GroupOverview() {
   const [formMode, setFormMode] = useState("overview");
   const [editingId, setEditingId] = useState(null);
 
+  // ✅ DETECTAR ROL DE ESTUDIANTE
+  const userRole = localStorage.getItem("userRole");
+  const isStudent = (userRole || "").toLowerCase() === "student";
+
   const [draft, setDraft] = useState({
     groupName: "",
     size: "",
@@ -106,13 +110,22 @@ export default function GroupOverview() {
     program: "",
   });
 
+  // ✅ CARGA DE DATOS A PRUEBA DE FALLOS
   async function loadData() {
     setLoading(true);
     try {
-      const [groupData, programData] = await Promise.all([
-        api.getGroups(),
-        api.getPrograms()
-      ]);
+      // 1. Cargamos Grupos (Esto debería funcionar siempre tras el arreglo del backend)
+      const groupData = await api.getGroups();
+
+      // 2. Intentamos cargar Programas
+      let programData = [];
+      try {
+        programData = await api.getPrograms();
+      } catch (e) {
+        // Si falla (por permisos de estudiante), no rompemos la página
+        console.warn("No se pudieron cargar programas (probablemente rol de estudiante). Ignorando.", e);
+        programData = [];
+      }
 
       const mappedGroups = (Array.isArray(groupData) ? groupData : []).map((x) => ({
         id: x.id,
@@ -123,6 +136,7 @@ export default function GroupOverview() {
         parentGroup: x.parent_group || "",
         program: x.program || "",
       }));
+
       setGroups(mappedGroups);
       setPrograms(Array.isArray(programData) ? programData : []);
 
@@ -206,9 +220,13 @@ export default function GroupOverview() {
     <div style={styles.container}>
       <div style={styles.header}>
         <h2 style={styles.title}>Group Overview</h2>
-        <button style={{...styles.btn, ...styles.primaryBtn}} onClick={openAdd}>
-          + New Group
-        </button>
+
+        {/* ✅ OCULTAR BOTÓN NEW GROUP SI ES ESTUDIANTE */}
+        {!isStudent && (
+          <button style={{...styles.btn, ...styles.primaryBtn}} onClick={openAdd}>
+            + New Group
+          </button>
+        )}
       </div>
 
       <input
@@ -228,7 +246,8 @@ export default function GroupOverview() {
               <th style={styles.th}>Email</th>
               <th style={styles.th}>Parent Group</th>
               <th style={styles.th}>Program</th>
-              <th style={{...styles.th, textAlign:'right'}}>Actions</th>
+              {/* ✅ OCULTAR COLUMNA ACTIONS SI ES ESTUDIANTE */}
+              {!isStudent && <th style={{...styles.th, textAlign:'right'}}>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -242,17 +261,21 @@ export default function GroupOverview() {
                 <td style={styles.td}>{g.email || "-"}</td>
                 <td style={styles.td}>{g.parentGroup || "-"}</td>
                 <td style={styles.td}>{g.program || "-"}</td>
-                <td style={{...styles.td, textAlign:'right', whiteSpace:'nowrap'}}>
-                  <button style={{...styles.btn, ...styles.editBtn}} onClick={() => openEdit(g)}>Edit</button>
-                  <button style={{...styles.btn, ...styles.deleteBtn}} onClick={() => remove(g.id)}>Delete</button>
-                </td>
+
+                {/* ✅ OCULTAR BOTONES SI ES ESTUDIANTE */}
+                {!isStudent && (
+                  <td style={{...styles.td, textAlign:'right', whiteSpace:'nowrap'}}>
+                    <button style={{...styles.btn, ...styles.editBtn}} onClick={() => openEdit(g)}>Edit</button>
+                    <button style={{...styles.btn, ...styles.deleteBtn}} onClick={() => remove(g.id)}>Delete</button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
       )}
 
-      {/* --- MODAL --- */}
+      {/* --- MODAL (Solo se abre si formMode cambia, lo cual no puede hacer un estudiante sin botones) --- */}
       {(formMode === "add" || formMode === "edit") && (
         <div style={styles.modalOverlay}>
             <div style={styles.modalContent}>
@@ -281,7 +304,7 @@ export default function GroupOverview() {
                     <input style={styles.input} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="e.g., A group focused on software development"/>
                 </div>
 
-                {/* ✅ Parent Group Selector (Simplified) */}
+                {/* Parent Group Selector */}
                 <div style={styles.formGroup}>
                     <label style={styles.label}>Parent Group (Optional)</label>
                     <select
@@ -291,7 +314,7 @@ export default function GroupOverview() {
                     >
                         <option value="">-- No Parent Group --</option>
                         {groups
-                            .filter(g => g.id !== editingId) // Prevent selecting self as parent
+                            .filter(g => g.id !== editingId)
                             .map(g => (
                                 <option key={g.id} value={g.groupName}>
                                     {g.groupName}
