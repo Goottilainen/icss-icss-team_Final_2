@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import api from "../api";
 
+const userRole = (localStorage.getItem("role") || "").toLowerCase();
+const CAN_MANAGE_MODULES = ["admin", "pm", "hosp"].includes(userRole);
+
+
 // --- STYLES ---
 const styles = {
   container: { padding: "20px", fontFamily: "'Inter', sans-serif", color: "#333", maxWidth: "1200px", margin: "0 auto" },
@@ -235,7 +239,17 @@ export default function ModuleOverview({ onNavigate }) {
       {/* Controls */}
       <div style={styles.controlsBar}>
         <input style={styles.searchBar} placeholder="Search modules..." value={query} onChange={(e) => setQuery(e.target.value)} />
-        <button style={{...styles.btn, ...styles.primaryBtn}} onClick={openAdd}>+ New Module</button>
+        
+      {CAN_MANAGE_MODULES && (
+        <button
+            style={{...styles.btn, ...styles.primaryBtn}}
+            onClick={openAdd}
+        >
+            + New Module
+        </button>
+        )}
+      
+      
       </div>
 
       {/* Header Row */}
@@ -291,10 +305,23 @@ export default function ModuleOverview({ onNavigate }) {
                     <div style={styles.cellText}>{m.assessment_type || "-"}</div>
                     <div style={styles.cellText}>{m.room_type}</div>
 
+                {CAN_MANAGE_MODULES && (
                     <div style={styles.actionContainer}>
-                        <button style={{...styles.actionBtn, ...styles.editBtn}} onClick={() => openEdit(m)}>Edit</button>
-                        <button style={{...styles.actionBtn, ...styles.deleteBtn}} onClick={() => initiateDelete(m)}>Del</button>
-                    </div>
+                    <button
+                        style={{...styles.actionBtn, ...styles.editBtn}}
+                        onClick={() => openEdit(m)}
+                    >
+                        Edit
+                    </button>
+                    <button
+                style={{...styles.actionBtn, ...styles.deleteBtn}}
+            onClick={() => initiateDelete(m)}
+    >
+                     Del
+            </button>
+        </div>
+        )}
+
                 </div>
                 );
             })
