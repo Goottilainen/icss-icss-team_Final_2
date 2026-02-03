@@ -23,161 +23,238 @@ const styles = {
   select: { width: "100%", padding: "10px", borderRadius: "6px", border: "1px solid #cbd5e1", background: "white", marginBottom: "15px" },
 };
 
-const STANDARD_ROOM_TYPES = ["Lecture Classroom", "Computer Lab", "Seminar"];
-const ASSESSMENT_TYPES = ["Written Exam", "Presentation", "Project", "Report"];
-const CATEGORY_TYPES = ["Core", "Shared", "Elective"];
+export default function ModuleOverview({
+  onNavigate,
 
-export default function ModuleOverview({ onNavigate }) {
-  // --- 1. SUPER FLEXIBLE PERMISSION LOGIC ---
-  const rawRole = localStorage.getItem("userRole") || "";
-  // Check for 'hosp' OR 'head of program'
-  const isHoSP = rawRole.toLowerCase().includes("hosp") || rawRole.toLowerCase().includes("head");
-  const isAdmin = rawRole.toLowerCase().includes("admin") || rawRole.toLowerCase().includes("pm");
-
-  const managedProgramIds = useMemo(() => {
-    try {
-      const raw = localStorage.getItem("managedProgramIds");
-      const parsed = raw ? JSON.parse(raw) : [];
-      // Force everything to String to avoid 1 !== "1" issues
-      return Array.isArray(parsed) ? parsed.map(id => String(id)) : [];
-    } catch (e) { return []; }
-  }, []);
-
-  const checkManagePermission = (module) => {
-    if (isAdmin) return true;
-    if (isHoSP) {
-      // If module is not assigned to a program, HoSP cannot edit it
-      if (!module.program_id) return false;
-      // Strict String check
-      return managedProgramIds.includes(String(module.program_id));
-    }
-    return false;
-  };
-
-  // --- 2. STATE ---
+  // 🔐 AUTH CONTEXT (PASS THESE FROM PARENT)
+  userRole,
+  userId,
+  enrolledModuleCodes = [],      // student
+  lecturerModuleCodes = [],      // lecturer
+  hospsOwnedProgramIds = []      // HoSP
+}) {
   const [modules, setModules] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [specializations, setSpecializations] = useState([]);
-  const [customRoomTypes, setCustomRoomTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+
+  // Form state
   const [formMode, setFormMode] = useState("overview");
   const [editingCode, setEditingCode] = useState(null);
   const [draft, setDraft] = useState({
-    module_code: "", name: "", ects: 5, room_type: "Lecture Classroom", semester: 1,
-    assessment_type: "Written Exam", category: "Core", program_id: "", specialization_ids: []
+    module_code: "",
+    name: "",
+    ects: 5,
+    semester: 1,
+    category: "Core",
+    room_type: "Lecture Classroom",
+    assessment_type: "Written Exam",
+    program_id: "",
+    specialization_ids: []
   });
+
+  // Delete state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [moduleToDelete, setModuleToDelete] = useState(null);
 
-  useEffect(() => { loadData(); }, []);
+  // ---------------------------------------
+  // LOAD DATA
+  // ---------------------------------------
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [modData, progData, specData, roomData] = await Promise.all([
-        api.getModules(), api.getPrograms(), api.getSpecializations(), api.getRooms()
+      const [mods, progs, specs] = await Promise.all([
+        api.getModules(),
+        api.getPrograms(),
+        api.getSpecializations()
       ]);
-      setModules(modData || []);
-      setPrograms(progData || []);
-      setSpecializations(specData || []);
-      const existingCustom = (roomData || []).map(r => r.type).filter(t => t && !STANDARD_ROOM_TYPES.includes(t));
-      setCustomRoomTypes([...new Set(existingCustom)].sort());
-    } catch (e) { console.error(e); } finally { setLoading(false); }
+      setModules(mods || []);
+      setPrograms(progs || []);
+      setSpecializations(specs || []);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filteredModules = modules.filter(m => 
-    m.name.toLowerCase().includes(query.toLowerCase()) || 
-    m.module_code.toLowerCase().includes(query.toLowerCase())
-  );
+  // ---------------------------------------
+  // 🔐 ROLE PERMISSIONS
+  // ---------------------------------------
+  const canCreate =
+    userRole === "PM" || userRole === "HOSP";
 
+  const canEditModule = (m) =>
+    userRole === "PM" ||
+    (userRole === "HOSP" && hospsOwnedProgramIds.includes(m.program_id));
+
+  const canDeleteModule = canEditModule;
+
+  // ---------------------------------------
+  // 🔍 FILTER MODULES BY ROLE + SEARCH
+  // ---------------------------------------
+  const visibleModules = useMemo(() => {
+    let base = modules;
+
+    if (userRole === "STUDENT") {
+      base = base.filter(m =>
+        enrolledModuleCodes.includes(m.module_code)
+      );
+    }
+
+    if (userRole === "LECTURER") {
+      base = base.filter(m =>
+        lecturerModuleCodes.includes(m.module_code)
+      );
+    }
+
+    const q = query.trim().toLowerCase();
+    return base.filter(
+      m =>
+        m.name.toLowerCase().includes(q) ||
+        m.module_code.toLowerCase().includes(q)
+    );
+  }, [
+    modules,
+    query,
+    userRole,
+    enrolledModuleCodes,
+    lecturerModuleCodes
+  ]);
+
+  // ---------------------------------------
+  // FORM ACTIONS
+  // ---------------------------------------
   const openAdd = () => {
-    setDraft({ module_code: "", name: "", ects: 5, room_type: "Lecture Classroom", semester: 1, assessment_type: "Written Exam", category: "Core", program_id: "", specialization_ids: [] });
+    if (!canCreate) return;
+    setEditingCode(null);
+    setDraft({
+      module_code: "",
+      name: "",
+      ects: 5,
+      semester: 1,
+      category: "Core",
+      room_type: "Lecture Classroom",
+      assessment_type: "Written Exam",
+      program_id: "",
+      specialization_ids: []
+    });
     setFormMode("add");
   };
 
   const openEdit = (m) => {
+    if (!canEditModule(m)) return;
     setEditingCode(m.module_code);
-    setDraft({ ...m, program_id: m.program_id ? String(m.program_id) : "", specialization_ids: (m.specializations || []).map(s => s.id) });
+    setDraft({
+      ...m,
+      program_id: m.program_id ? String(m.program_id) : ""
+    });
     setFormMode("edit");
   };
 
   const save = async () => {
-    try {
-      const payload = { ...draft, ects: parseInt(draft.ects), semester: parseInt(draft.semester), program_id: draft.program_id ? parseInt(draft.program_id) : null };
-      if (formMode === "add") await api.createModule(payload);
-      else await api.updateModule(editingCode, payload);
-      loadData();
-      setFormMode("overview");
-    } catch (e) { alert("Error saving."); }
+    if (
+      formMode === "edit" &&
+      !canEditModule({ program_id: parseInt(draft.program_id) })
+    ) {
+      alert("You are not allowed to modify this module.");
+      return;
+    }
+
+    const payload = {
+      ...draft,
+      ects: parseInt(draft.ects),
+      semester: parseInt(draft.semester),
+      program_id: draft.program_id
+        ? parseInt(draft.program_id)
+        : null
+    };
+
+    if (formMode === "add") {
+      await api.createModule(payload);
+    } else {
+      await api.updateModule(editingCode, payload);
+    }
+
+    await loadData();
+    setFormMode("overview");
   };
 
+  const confirmDelete = async () => {
+    if (!canDeleteModule(moduleToDelete)) {
+      alert("Not allowed.");
+      return;
+    }
+    await api.deleteModule(moduleToDelete.module_code);
+    setShowDeleteModal(false);
+    loadData();
+  };
+
+  // ---------------------------------------
+  // RENDER
+  // ---------------------------------------
   return (
-    <div style={styles.container}>
-      {/* 3. THE DEBUG BOX (Delete this once working) */}
-      <div style={{background: '#fefce8', border: '1px solid #fef08a', padding: '10px', borderRadius: '8px', marginBottom: '15px', fontSize: '0.8rem'}}>
-        <strong>Status:</strong> Role: {rawRole} | Is HoSP: {isHoSP ? "✅" : "❌"} | Managed IDs: {JSON.stringify(managedProgramIds)}
+    <div style={{ padding: 20 }}>
+      {/* CONTROLS */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+        <input
+          placeholder="Search modules..."
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+        />
+        {canCreate && (
+          <button onClick={openAdd}>+ New Module</button>
+        )}
       </div>
 
-      <div style={styles.controlsBar}>
-        <input style={styles.searchBar} placeholder="Search..." value={query} onChange={e => setQuery(e.target.value)} />
-        {(isAdmin || isHoSP) && <button style={styles.primaryBtn} onClick={openAdd}>+ New Module</button>}
-      </div>
+      {/* MODULE LIST */}
+      {loading ? (
+        <p>Loading…</p>
+      ) : (
+        visibleModules.map(m => (
+          <div
+            key={m.module_code}
+            style={{
+              padding: 12,
+              border: "1px solid #ddd",
+              borderRadius: 6,
+              marginBottom: 8
+            }}
+          >
+            <strong>{m.module_code}</strong> — {m.name}
 
-      <div style={styles.listHeader}>
-        <div>Code</div><div>Name</div><div>Prog ID</div><div>Sem</div><div>ECTS</div><div>Room</div><div style={{textAlign:'right'}}>Action</div>
-      </div>
-
-      <div style={styles.listContainer}>
-        {filteredModules.map(m => {
-          const canManage = checkManagePermission(m);
-          return (
-            <div key={m.module_code} style={styles.listCard}>
-              <div style={styles.codeText}>{m.module_code}</div>
-              <div style={styles.nameText}>{m.name}</div>
-              <div style={{color: '#64748b'}}>ID: {m.program_id || "Global"}</div>
-              <div style={{textAlign:'center'}}>{m.semester}</div>
-              <div style={{textAlign:'center'}}>{m.ects}</div>
-              <div style={{fontSize:'0.85rem'}}>{m.room_type}</div>
-              <div style={styles.actionContainer}>
-                {canManage ? (
-                  <>
-                    <button style={{...styles.actionBtn, ...styles.editBtn}} onClick={() => openEdit(m)}>Edit</button>
-                    <button style={{...styles.actionBtn, ...styles.deleteBtn}} onClick={() => { setModuleToDelete(m); setShowDeleteModal(true); }}>Del</button>
-                  </>
-                ) : (
-                  <span style={{fontSize:'0.65rem', color:'#cbd5e1', fontWeight:'700'}}>READ ONLY</span>
-                )}
-              </div>
+            <div style={{ marginTop: 6 }}>
+              {canEditModule(m) && (
+                <button onClick={() => openEdit(m)}>Edit</button>
+              )}
+              {canDeleteModule(m) && (
+                <button
+                  onClick={() => {
+                    setModuleToDelete(m);
+                    setShowDeleteModal(true);
+                  }}
+                >
+                  Delete
+                </button>
+              )}
             </div>
-          );
-        })}
-      </div>
-
-      {/* MODAL (ADD/EDIT) */}
-      {(formMode === "add" || formMode === "edit") && (
-        <div style={styles.overlay}>
-          <div style={styles.modal}>
-            <h3>{formMode === "add" ? "Create Module" : "Edit Module"}</h3>
-            <label style={styles.label}>Module Code</label>
-            <input style={styles.input} value={draft.module_code} onChange={e => setDraft({...draft, module_code: e.target.value})} disabled={formMode === "edit"} />
-            
-            <label style={styles.label}>Program Owner</label>
-            <select style={styles.select} value={draft.program_id} onChange={e => setDraft({...draft, program_id: e.target.value})}>
-              <option value="">-- Global --</option>
-              {programs.map(p => {
-                const forbidden = isHoSP && !managedProgramIds.includes(String(p.id));
-                return <option key={p.id} value={p.id} disabled={forbidden}>{p.name} {forbidden ? "(Locked)" : ""}</option>
-              })}
-            </select>
-
-            <button style={styles.btn} onClick={() => setFormMode("overview")}>Cancel</button>
-            <button style={{...styles.btn, ...styles.primaryBtn, marginLeft: '10px'}} onClick={save}>Save</button>
           </div>
-        </div>
+        ))
       )}
 
-      {/* DELETE CONFIRMATION (Not shown for brevity, same as yours) */}
+      {/* DELETE MODAL */}
+      {showDeleteModal && (
+        <div>
+          <p>Type DELETE to confirm</p>
+          <button onClick={confirmDelete}>Confirm</button>
+          <button onClick={() => setShowDeleteModal(false)}>
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   );
 }
