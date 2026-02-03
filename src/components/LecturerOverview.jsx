@@ -115,31 +115,37 @@ export default function LecturerOverview() {
     teachingLoad: "",
   });
 
-  // ✅ 1. ESTADO PARA EL ROL
+  // ✅ 1. LEER ROL
   const [currentRole, setCurrentRole] = useState(() => {
     const raw = localStorage.getItem("userRole");
     return (raw || "").replace(/"/g, "").trim().toLowerCase();
   });
 
-  // ✅ 2. ESCUCHAR EL CAMBIO DE ROL INSTANTÁNEO
+  // ✅ 2. ACTUALIZAR ROL AL INSTANTE
   useEffect(() => {
     const handleRoleUpdate = () => {
       const raw = localStorage.getItem("userRole");
       const cleanRole = (raw || "").replace(/"/g, "").trim().toLowerCase();
       setCurrentRole(cleanRole);
     };
-
     window.addEventListener("role-changed", handleRoleUpdate);
     window.addEventListener("storage", handleRoleUpdate);
-
     return () => {
       window.removeEventListener("role-changed", handleRoleUpdate);
       window.removeEventListener("storage", handleRoleUpdate);
     };
   }, []);
 
-  // ✅ 3. LÓGICA DE RESTRICCIÓN (SOLO ESTUDIANTES BLOQUEADOS)
-  const isRestricted = currentRole === "student";
+  // ✅ 3. DEFINIR PERMISOS (AQUÍ ESTÁ TU CAMBIO)
+  // Crear: Admin, PM, HoSP (Student y Lecturer NO pueden)
+  const canCreate = !["student", "lecturer"].includes(currentRole);
+
+  // Borrar: Admin, PM, HoSP (Student y Lecturer NO pueden)
+  const canDelete = !["student", "lecturer"].includes(currentRole);
+
+  // Editar: Todos MENOS Student (Lecturer SÍ puede editar)
+  const canEdit = currentRole !== "student";
+
 
   async function loadLecturers() {
     setLoading(true);
@@ -297,8 +303,8 @@ export default function LecturerOverview() {
     <div style={styles.container}>
       <div style={styles.header}>
         <h2 style={styles.title}>Lecturer Overview</h2>
-        {/* ✅ OCULTAR BOTÓN SOLO PARA ESTUDIANTES */}
-        {!isRestricted && (
+        {/* ✅ BOTÓN NUEVO: Visible si canCreate es true (Admin/PM/HoSP) */}
+        {canCreate && (
             <button style={{ ...styles.btn, ...styles.primaryBtn }} onClick={openAdd}>
             + New Lecturer
             </button>
@@ -322,8 +328,8 @@ export default function LecturerOverview() {
               <th style={styles.th}>Location</th>
               <th style={styles.th}>MDH Email</th>
               <th style={styles.th}>Teaching Load</th>
-              {/* ✅ OCULTAR COLUMNA ACCIONES SOLO PARA ESTUDIANTES */}
-              {!isRestricted && <th style={{ ...styles.th, textAlign: 'right' }}>Actions</th>}
+              {/* ✅ MOSTRAR COLUMNA ACCIONES SI PUEDE EDITAR O BORRAR */}
+              {(canEdit || canDelete) && <th style={{ ...styles.th, textAlign: 'right' }}>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -335,15 +341,23 @@ export default function LecturerOverview() {
                 <td style={styles.td}>{l.location || "-"}</td>
                 <td style={styles.td}>{l.mdhEmail || "-"}</td>
                 <td style={styles.td}>{l.teachingLoad || "-"}</td>
-                {/* ✅ OCULTAR BOTONES SOLO PARA ESTUDIANTES */}
-                {!isRestricted && (
+
+                {/* ✅ LÓGICA DE ACCIONES */}
+                {(canEdit || canDelete) && (
                     <td style={{ ...styles.td, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                    <button style={{ ...styles.btn, ...styles.editBtn }} onClick={() => openEdit(l)}>
-                        Edit
-                    </button>
-                    <button style={{ ...styles.btn, ...styles.deleteBtn }} onClick={() => remove(l.id)}>
-                        Delete
-                    </button>
+                    {/* Botón Edit: Visible para Admin/PM/HoSP Y LECTURERS */}
+                    {canEdit && (
+                        <button style={{ ...styles.btn, ...styles.editBtn }} onClick={() => openEdit(l)}>
+                            Edit
+                        </button>
+                    )}
+
+                    {/* Botón Delete: Visible SOLO para Admin/PM/HoSP */}
+                    {canDelete && (
+                        <button style={{ ...styles.btn, ...styles.deleteBtn }} onClick={() => remove(l.id)}>
+                            Delete
+                        </button>
+                    )}
                     </td>
                 )}
               </tr>
