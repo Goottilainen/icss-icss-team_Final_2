@@ -97,9 +97,31 @@ export default function GroupOverview() {
   const [formMode, setFormMode] = useState("overview");
   const [editingId, setEditingId] = useState(null);
 
-  // ✅ DETECTAR ROL DE ESTUDIANTE
-  const userRole = localStorage.getItem("userRole");
-  const isStudent = (userRole || "").toLowerCase() === "student";
+  // ✅ 1. LEER ROL
+  const [currentRole, setCurrentRole] = useState(() => {
+    const raw = localStorage.getItem("userRole");
+    return (raw || "").replace(/"/g, "").trim().toLowerCase();
+  });
+
+  // ✅ 2. ACTUALIZAR ROL AL INSTANTE
+  useEffect(() => {
+    const handleRoleUpdate = () => {
+      const raw = localStorage.getItem("userRole");
+      const cleanRole = (raw || "").replace(/"/g, "").trim().toLowerCase();
+      setCurrentRole(cleanRole);
+    };
+    window.addEventListener("role-changed", handleRoleUpdate);
+    window.addEventListener("storage", handleRoleUpdate);
+    return () => {
+      window.removeEventListener("role-changed", handleRoleUpdate);
+      window.removeEventListener("storage", handleRoleUpdate);
+    };
+  }, []);
+
+  // ✅ 3. LÓGICA DE RESTRICCIÓN
+  // Si es Student O Lecturer -> TRUE (restringido)
+  // Si es Admin, PM, HoSP -> FALSE (libre)
+  const isRestricted = ["student", "lecturer"].includes(currentRole);
 
   const [draft, setDraft] = useState({
     groupName: "",
@@ -110,20 +132,15 @@ export default function GroupOverview() {
     program: "",
   });
 
-  // ✅ CARGA DE DATOS A PRUEBA DE FALLOS
   async function loadData() {
     setLoading(true);
     try {
-      // 1. Cargamos Grupos (Esto debería funcionar siempre tras el arreglo del backend)
       const groupData = await api.getGroups();
-
-      // 2. Intentamos cargar Programas
       let programData = [];
       try {
         programData = await api.getPrograms();
       } catch (e) {
-        // Si falla (por permisos de estudiante), no rompemos la página
-        console.warn("No se pudieron cargar programas (probablemente rol de estudiante). Ignorando.", e);
+        console.warn("No se pudieron cargar programas (probablemente rol restringido).", e);
         programData = [];
       }
 
@@ -221,8 +238,8 @@ export default function GroupOverview() {
       <div style={styles.header}>
         <h2 style={styles.title}>Group Overview</h2>
 
-        {/* ✅ OCULTAR BOTÓN NEW GROUP SI ES ESTUDIANTE */}
-        {!isStudent && (
+        {/* ✅ OCULTAR BOTÓN NEW GROUP SI ES RESTRINGIDO (Student o Lecturer) */}
+        {!isRestricted && (
           <button style={{...styles.btn, ...styles.primaryBtn}} onClick={openAdd}>
             + New Group
           </button>
@@ -246,8 +263,8 @@ export default function GroupOverview() {
               <th style={styles.th}>Email</th>
               <th style={styles.th}>Parent Group</th>
               <th style={styles.th}>Program</th>
-              {/* ✅ OCULTAR COLUMNA ACTIONS SI ES ESTUDIANTE */}
-              {!isStudent && <th style={{...styles.th, textAlign:'right'}}>Actions</th>}
+              {/* ✅ OCULTAR COLUMNA ACTIONS SI ES RESTRINGIDO */}
+              {!isRestricted && <th style={{...styles.th, textAlign:'right'}}>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -262,8 +279,8 @@ export default function GroupOverview() {
                 <td style={styles.td}>{g.parentGroup || "-"}</td>
                 <td style={styles.td}>{g.program || "-"}</td>
 
-                {/* ✅ OCULTAR BOTONES SI ES ESTUDIANTE */}
-                {!isStudent && (
+                {/* ✅ OCULTAR BOTONES SI ES RESTRINGIDO */}
+                {!isRestricted && (
                   <td style={{...styles.td, textAlign:'right', whiteSpace:'nowrap'}}>
                     <button style={{...styles.btn, ...styles.editBtn}} onClick={() => openEdit(g)}>Edit</button>
                     <button style={{...styles.btn, ...styles.deleteBtn}} onClick={() => remove(g.id)}>Delete</button>
@@ -275,7 +292,7 @@ export default function GroupOverview() {
         </table>
       )}
 
-      {/* --- MODAL (Solo se abre si formMode cambia, lo cual no puede hacer un estudiante sin botones) --- */}
+      {/* --- MODAL --- */}
       {(formMode === "add" || formMode === "edit") && (
         <div style={styles.modalOverlay}>
             <div style={styles.modalContent}>
