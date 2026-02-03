@@ -3,12 +3,16 @@ import api from "./api";
 import "./App.css";
 
 const Layout = ({ activeTab, setActiveTab, children, currentUserRole, setCurrentUserRole }) => {
-  // Normalizamos el rol actual para comparaciones
-  const role = (currentUserRole || "").toLowerCase();
+  // Aseguramos que el rol siempre se lea en minúsculas y limpio
+  const role = (currentUserRole || "").trim().toLowerCase();
+
+  // ✅ Variable para saber si es estudiante (y ocultar cosas grandes)
+  const isStudent = role === "student";
 
   const NavLink = ({ id, icon, label, rolesAllowed = [] }) => {
-    // Si la lista de permitidos tiene roles y el mío no está, adiós.
-    if (rolesAllowed.length > 0 && !rolesAllowed.includes(role)) {
+    const normalizedAllowed = rolesAllowed.map(r => r.toLowerCase());
+
+    if (normalizedAllowed.length > 0 && !normalizedAllowed.includes(role)) {
       return null;
     }
     return (
@@ -23,24 +27,27 @@ const Layout = ({ activeTab, setActiveTab, children, currentUserRole, setCurrent
   };
 
   const handleRoleChange = async (e) => {
-    const newRole = e.target.value;
-    if (newRole === "Guest") return;
+    const newRole = (e.target.value || "").trim().toLowerCase();
+    if (newRole === "guest") return;
 
     let email = "";
     const password = "password";
 
-    if (newRole === "PM") email = "pm@icss.com";
-    else if (newRole === "HoSP") email = "hosp@icss.com";
-    else if (newRole === "Lecturer") email = "lecturer@icss.com";
-    else if (newRole === "Student") email = "student@icss.com";
-    else return;
+    switch (newRole) {
+      case "pm": email = "pm@icss.com"; break;
+      case "hosp": email = "hosp@icss.com"; break;
+      case "lecturer": email = "lecturer@icss.com"; break;
+      case "student": email = "student@icss.com"; break;
+      default: return;
+    }
 
     try {
       const data = await api.login(email, password);
 
-      // 1. Guardamos en LocalStorage
+      const normalizedBackendRole = String(data.role || "").trim().toLowerCase();
+
       localStorage.setItem("token", data.access_token);
-      localStorage.setItem("userRole", data.role);
+      localStorage.setItem("userRole", normalizedBackendRole);
 
       if (data.lecturer_id) {
         localStorage.setItem("lecturerId", String(data.lecturer_id));
@@ -48,21 +55,17 @@ const Layout = ({ activeTab, setActiveTab, children, currentUserRole, setCurrent
         localStorage.removeItem("lecturerId");
       }
 
-      // 2. Actualizamos el estado de React
-      setCurrentUserRole(data.role);
+      setCurrentUserRole(normalizedBackendRole);
 
-      // 🔥 3. DISPARAMOS EL EVENTO PARA QUE LOS MÓDULOS SE ENTEREN AL INSTANTE
+      // Avisamos del cambio de rol
       window.dispatchEvent(new Event("role-changed"));
 
-      // 4. Recargamos la página para limpiar memoria
-      window.location.reload();
     } catch (err) {
       console.error(err);
       alert("Login Error: " + err.message);
     }
   };
 
-  // Valor del dropdown para la UI
   let dropdownVal = "Guest";
   if (role === "admin" || role === "pm") dropdownVal = "PM";
   else if (role === "hosp") dropdownVal = "HoSP";
@@ -80,17 +83,26 @@ const Layout = ({ activeTab, setActiveTab, children, currentUserRole, setCurrent
           <NavLink id="modules" label="Modules" rolesAllowed={["admin", "pm", "hosp", "lecturer", "student"]} />
 
           <div className="nav-section-title">People & Groups</div>
-          <NavLink id="lecturers" label="Lecturers" rolesAllowed={["admin", "pm", "hosp", "lecturer", "student"]} />
-
-          {/* ✅ Student incluido */}
+          {/* ✅ LECTURERS: Quitamos "student" de la lista permitida */}
+          <NavLink id="lecturers" label="Lecturers" rolesAllowed={["admin", "pm", "hosp", "lecturer"]} />
           <NavLink id="groups" label="Student Groups" rolesAllowed={["admin", "pm", "hosp", "lecturer", "student"]} />
 
-          <div className="nav-section-title">Facilities</div>
-          <NavLink id="rooms" label="Rooms" rolesAllowed={["admin", "pm", "hosp"]} />
+          {/* ✅ FACILITIES: Ocultamos toda la sección si es Estudiante */}
+          {!isStudent && (
+            <>
+              <div className="nav-section-title">Facilities</div>
+              <NavLink id="rooms" label="Rooms" rolesAllowed={["admin", "pm", "hosp"]} />
+            </>
+          )}
 
-          <div className="nav-section-title">Planning Logic</div>
-          <NavLink id="constraints" label="Constraints & Rules" rolesAllowed={["admin", "pm", "hosp", "lecturer"]} />
-          <NavLink id="availabilities" label="Availability" rolesAllowed={["admin", "pm", "hosp", "lecturer"]} />
+          {/* ✅ PLANNING LOGIC: Ocultamos toda la sección si es Estudiante */}
+          {!isStudent && (
+            <>
+              <div className="nav-section-title">Planning Logic</div>
+              <NavLink id="constraints" label="Constraints & Rules" rolesAllowed={["admin", "pm", "hosp", "lecturer"]} />
+              <NavLink id="availabilities" label="Availability" rolesAllowed={["admin", "pm", "hosp", "lecturer"]} />
+            </>
+          )}
         </div>
 
         <div className="sidebar-footer" style={{ borderTop: '1px solid #334155', padding: '20px' }}>
