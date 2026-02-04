@@ -59,7 +59,7 @@ def update_lecturer(lecturer_id: int, p: schemas.LecturerUpdate, db: Session = D
             setattr(lecturer, key, value)
 
     elif r == "lecturer":
-        # Profesor: Solo actualiza Phone y Personal Email
+        # Profesor: Solo actualiza Phone y Personal Email.
         # Verificamos que esté editando SU propio perfil
         if hasattr(current_user, "lecturer_id") and current_user.lecturer_id != lecturer_id:
             raise HTTPException(status_code=403, detail="You can only edit your own profile")
