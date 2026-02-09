@@ -1,4 +1,3 @@
-
 from sqlalchemy import Column, Integer, String, Boolean, Date, ForeignKey, Text, JSON, TIMESTAMP, Table
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
@@ -123,29 +122,33 @@ class LecturerAvailability(Base):
     schedule_data = Column(JSON, default={}, nullable=False)
 
 
-class ConstraintType(Base):
-    __tablename__ = "constraint_types"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(80), unique=True, nullable=False)
-    active = Column(Boolean, default=True, nullable=False)
-    constraint_level = Column(String, nullable=True)
-    constraint_format = Column(String, nullable=True)
-    valid_from = Column(Date, nullable=True)
-    valid_to = Column(Date, nullable=True)
-    constraint_rule = Column(Text, nullable=True)
-    constraint_target = Column(String, nullable=True)
-
+# -------------------------------------------------------------------
+#  UPDATED SCHEDULER MODELS (Text-First Architecture)
+# -------------------------------------------------------------------
 
 class SchedulerConstraint(Base):
     __tablename__ = "scheduler_constraints"
+
     id = Column(Integer, primary_key=True, index=True)
-    constraint_type_id = Column(Integer, ForeignKey("constraint_types.id"), nullable=False)
-    hardness = Column(String(10), nullable=False)
-    weight = Column(Integer, nullable=True)
-    scope = Column(String(20), nullable=False)
-    target_id = Column(Integer, nullable=True)
-    config = Column(JSON, default={}, nullable=False)
+
+    # Basic Info
+    name = Column(String, nullable=False)  # Internal Title (e.g. "Mohammed Friday Rule")
+    category = Column(String, default="General")  # e.g. "Time Preference", "Room Requirement"
+
+    # The Natural Language Instruction
+    rule_text = Column(Text, nullable=False)  # e.g. "Lecturer 'Mohammed' is not available on Fridays"
+
+    # Context / Scope
+    scope = Column(String(20), nullable=False)  # "Lecturer", "Group", "Room", etc.
+    target_id = Column(Integer, nullable=True)  # The ID of the specific entity (0 for Global)
+
+    # Validity Dates (Optional)
+    valid_from = Column(Date, nullable=True)
+    valid_to = Column(Date, nullable=True)
+
+    # Status
     is_enabled = Column(Boolean, default=True, nullable=False)
-    notes = Column(Text, nullable=True)
+
+    # Timestamps
     created_at = Column(TIMESTAMP, server_default=func.now(), nullable=False)
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now(), nullable=False)

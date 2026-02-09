@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
-
 from typing import List, Optional, Any
+from datetime import date
 
 # --- AUTH ---
 class LoginRequest(BaseModel):
@@ -24,6 +24,7 @@ class LecturerBase(BaseModel):
     phone: Optional[str] = None
     location: Optional[str] = None
     teaching_load: Optional[str] = None
+
 class ModuleMini(BaseModel):
     module_code: str
     name: str
@@ -33,7 +34,6 @@ class ModuleMini(BaseModel):
 class LecturerCreate(LecturerBase):
     pass
 
-# Admin/PM full update (all optional)
 class LecturerUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -45,17 +45,15 @@ class LecturerUpdate(BaseModel):
     location: Optional[str] = None
     teaching_load: Optional[str] = None
 
-# Lecturer self update (restricted)
 class LecturerSelfUpdate(BaseModel):
     personal_email: Optional[str] = None
     phone: Optional[str] = None
 
 class LecturerResponse(LecturerBase):
     id: int
-    modules: List[ModuleMini] = []   
+    modules: List[ModuleMini] = []
     class Config:
         from_attributes = True
-
 
 class LecturerModulesUpdate(BaseModel):
     module_codes: List[str] = []
@@ -84,7 +82,7 @@ class StudyProgramUpdate(BaseModel):
     location: Optional[str] = None
     level: Optional[str] = None
     degree_type: Optional[str] = None
-    head_of_program_id: Optional[int] = None  # PM/Admin only in backend
+    head_of_program_id: Optional[int] = None
 
 class StudyProgramResponse(StudyProgramBase):
     id: int
@@ -136,8 +134,6 @@ class ModuleCreate(ModuleBase):
     specialization_ids: Optional[List[int]] = []
     assessment_breakdown: Optional[List[AssessmentPart]] = None
 
-
-
 class ModuleUpdate(BaseModel):
     name: Optional[str] = None
     ects: Optional[int] = None
@@ -149,15 +145,11 @@ class ModuleUpdate(BaseModel):
     program_id: Optional[int] = None
     specialization_ids: Optional[List[int]] = None
 
-
-
 class ModuleResponse(ModuleBase):
     assessment_breakdown: List[AssessmentPart] = []
     specializations: List[SpecializationResponse] = []
-
     class Config:
         from_attributes = True
-
 
 # --- GROUPS ---
 class GroupBase(BaseModel):
@@ -221,43 +213,30 @@ class AvailabilityResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# --- CONSTRAINT TYPES ---
-class ConstraintTypeResponse(BaseModel):
-    id: int
-    name: str
-    active: bool = True
-    constraint_level: Optional[str] = None
-    constraint_format: Optional[str] = None
-    valid_from: Optional[Any] = None
-    valid_to: Optional[Any] = None
-    constraint_rule: Optional[str] = None
-    constraint_target: Optional[str] = None
-    class Config:
-        from_attributes = True
 
-# --- SCHEDULER CONSTRAINTS ---
 class SchedulerConstraintBase(BaseModel):
-    constraint_type_id: int
-    hardness: str
-    weight: Optional[int] = 10
+    name: str
+    category: str
+    rule_text: str
     scope: str
-    target_id: Optional[int] = None
-    config: Any = {}
+    target_id: Optional[int] = 0
+    valid_from: Optional[date] = None
+    valid_to: Optional[date] = None
     is_enabled: bool = True
-    notes: Optional[str] = None
 
 class SchedulerConstraintCreate(SchedulerConstraintBase):
     pass
 
-class SchedulerConstraintUpdate(BaseModel):
-    constraint_type_id: Optional[int] = None
-    hardness: Optional[str] = None
-    weight: Optional[int] = None
+class SchedulerConstraintUpdate(SchedulerConstraintBase):
+    # All fields optional for update
+    name: Optional[str] = None
+    category: Optional[str] = None
+    rule_text: Optional[str] = None
     scope: Optional[str] = None
     target_id: Optional[int] = None
-    config: Optional[Any] = None
+    valid_from: Optional[date] = None
+    valid_to: Optional[date] = None
     is_enabled: Optional[bool] = None
-    notes: Optional[str] = None
 
 class SchedulerConstraintResponse(SchedulerConstraintBase):
     id: int
