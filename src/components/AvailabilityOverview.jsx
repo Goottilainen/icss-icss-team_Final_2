@@ -197,7 +197,7 @@ export default function AvailabilityOverview() {
                     <td style={styles.td}>
                       <button style={{...styles.btn, ...styles.editBtn}} onClick={() => openEdit(l.id)}>Edit Schedule</button>
                       {record && (
-                        <button style={{...styles.btn, ...styles.deleteBtn}} onClick={() => remove(l.id)}>Clear</button>
+                        <button style={{...styles.btn, ...styles.deleteBtn}} onClick={() => remove(l.id)}>Delete</button>
                       )}
                     </td>
                   </tr>
