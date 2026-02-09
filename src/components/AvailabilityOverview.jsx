@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import api from "../api";
+import api from "./api";
 
 const styles = {
   container: { padding: "20px", fontFamily: "'Segoe UI', sans-serif", color: "#333", maxWidth: "100%" },
@@ -58,7 +58,7 @@ export default function AvailabilityOverview() {
     }
   }
 
-
+  // ✅ Initialize Draft: Uses the JSON directly from DB
   function initDraft(lecturerId, existingData = {}) {
     const draft = {};
     DAYS.forEach(day => {
@@ -92,7 +92,7 @@ export default function AvailabilityOverview() {
   async function save() {
     if (!selectedLecturerId) return alert("Please select a lecturer");
 
-
+    // ✅ No complex conversion needed! Send JSON directly.
     const payload = {
       lecturer_id: parseInt(selectedLecturerId),
       schedule_data: weekDraft
@@ -174,7 +174,9 @@ export default function AvailabilityOverview() {
             </tr>
           </thead>
           <tbody>
-            {lecturers.map(l => {
+            {lecturers
+              .filter(l => availabilities.some(a => a.lecturer_id === l.id)) // Filter: Only show lecturers with schedules
+              .map(l => {
               const record = availabilities.find(a => a.lecturer_id === l.id);
               const schedule = record ? record.schedule_data : {};
 
@@ -197,7 +199,7 @@ export default function AvailabilityOverview() {
                     <td style={styles.td}>
                       <button style={{...styles.btn, ...styles.editBtn}} onClick={() => openEdit(l.id)}>Edit Schedule</button>
                       {record && (
-                        <button style={{...styles.btn, ...styles.deleteBtn}} onClick={() => remove(l.id)}>Delete</button>
+                        <button style={{...styles.btn, ...styles.deleteBtn}} onClick={() => remove(l.id)}>Clear</button>
                       )}
                     </td>
                   </tr>
@@ -267,7 +269,13 @@ export default function AvailabilityOverview() {
                 }}
               >
                 <option value="">-- Select Lecturer --</option>
-                {lecturers.map(l => (
+                {lecturers
+                  .filter(l => {
+                      // Filter: Only show if NO schedule exists, OR if it's the current one being edited
+                      const hasSchedule = availabilities.some(a => a.lecturer_id === l.id);
+                      return !hasSchedule || l.id == selectedLecturerId;
+                  })
+                  .map(l => (
                     <option key={l.id} value={l.id}>{l.first_name} {l.last_name}</option>
                 ))}
               </select>
