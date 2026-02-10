@@ -25,7 +25,7 @@ const styles = {
   modalContent: { background: "white", padding: "32px", borderRadius: "16px", width: "700px", maxWidth: "95%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)" },
 
   // Form Elements
-  sectionTitle: { fontSize: "1rem", fontWeight: "700", color: "#0f172a", marginTop: "20px", marginBottom: "12px", display: "flex", alignItems: "center", gap: "8px" },
+  sectionLabel: { fontSize: "0.85rem", fontWeight: "700", color: "#64748b", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.05em" },
   formRow: { display: "flex", gap: "20px", marginBottom: "16px" },
   formGroup: { marginBottom: "16px", flex: 1 },
   label: { display: "block", marginBottom: "8px", fontWeight: "600", fontSize: "0.9rem", color: "#334155" },
@@ -42,35 +42,35 @@ const styles = {
 
 const formatDate = (isoDate) => isoDate ? isoDate.split("T")[0] : "";
 
-// --- CONFIGURATION: Which categories allow which inputs? ---
+// --- CONFIGURATION ---
 const SCOPE_CATEGORIES = {
-    Global: [
+    University: [
         { value: "University Policy", label: "University Policy (Opening Hours)" },
         { value: "Academic Calendar", label: "Academic Calendar (Semester Dates)" },
         { value: "Time Definition", label: "Time Definition (Lecture Slots)" },
-        { value: "General", label: "General / Custom" }
+        { value: "Custom", label: "Custom" }
     ],
     Lecturer: [
-        { value: "Time Preference", label: "Time Preference (Unavailable Days)" },
+        { value: "Unavailable Days", label: "Unavailable Days" },
         { value: "Legal Requirement", label: "Legal Requirement (Workload Limit)" },
-        { value: "General", label: "General / Custom" }
+        { value: "Custom", label: "Custom" }
     ],
     Module: [
         { value: "Room Requirement", label: "Room Requirement" },
-        { value: "Time Preference", label: "Time Preference" },
-        { value: "General", label: "General / Custom" }
+        { value: "Unavailable Days", label: "Time Preference" },
+        { value: "Custom", label: "Custom" }
     ],
     Group: [
         { value: "Gap Limit", label: "Gap Limit" },
-        { value: "Time Preference", label: "Time Preference" },
-        { value: "General", label: "General / Custom" }
+        { value: "Unavailable Days", label: "Time Preference" },
+        { value: "Custom", label: "Custom" }
     ],
     Room: [
-         { value: "Time Preference", label: "Availability (Maintenance)" },
-         { value: "General", label: "General / Custom" }
+         { value: "Unavailable Days", label: "Availability" },
+         { value: "Custom", label: "Custom" }
     ],
     Program: [
-        { value: "General", label: "General / Custom" }
+        { value: "Custom", label: "Custom" }
     ]
 };
 
@@ -78,8 +78,11 @@ export default function ConstraintOverview() {
   const [constraints, setConstraints] = useState([]);
   const [targets, setTargets] = useState({
     LECTURER: [], GROUP: [], MODULE: [], ROOM: [], PROGRAM: [],
-    GLOBAL: [{ id: 0, name: "Global (All)" }],
+    UNIVERSITY: [{ id: 0, name: "Entire University" }],
   });
+
+  // Real DB Room Types
+  const [roomTypes, setRoomTypes] = useState([]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -87,8 +90,8 @@ export default function ConstraintOverview() {
   // DRAFT STATE
   const [draft, setDraft] = useState({
     name: "",
-    category: "General",
-    scope: "Global",
+    category: "Custom",
+    scope: "University",
     target_id: "0",
     valid_from: "",
     valid_to: "",
@@ -99,15 +102,18 @@ export default function ConstraintOverview() {
   // BUILDER STATE
   const [builder, setBuilder] = useState({
     day: "Friday",
-    roomType: "Computer Lab",
+    roomType: "", // Will be populated from DB
     limit: "4 hours",
     gap: "at least 1 hour",
     startTime: "08:00",
     endTime: "20:00",
-    semesterName: "Winter 2026",
     slotDuration: "90",
     breakDuration: "15",
-    workloadLimit: "18"
+    workloadLimit: "18",
+
+    // Semester Builder
+    semesterSeason: "Winter",
+    semesterYear: new Date().getFullYear(),
   });
 
   useEffect(() => { loadData(); }, []);
@@ -117,23 +123,24 @@ export default function ConstraintOverview() {
     if (!modalOpen) return;
 
     const targetList = targets[draft.scope.toUpperCase()] || [];
+    // Ensure loose equality for IDs (string vs number)
     const targetObj = targetList.find(t => String(t.id) === String(draft.target_id));
     const targetName = targetObj ? targetObj.name : "All Entities";
 
     let entity = `${draft.scope} "${targetName}"`;
     if (draft.target_id === "0" || draft.target_id === 0) {
-        if (draft.scope === "Global") entity = "The University";
+        if (draft.scope === "University") entity = "The University";
         else entity = `All ${draft.scope}s`;
     }
 
     let generatedText = "";
 
     switch (draft.category) {
-      case "Time Preference":
-        generatedText = `${entity} is not available on ${builder.day}s.`;
+      case "Unavailable Days":
+        generatedText = `${entity} is unavailable on ${builder.day}s.`;
         break;
       case "Room Requirement":
-        generatedText = `${entity} requires a room of type ${builder.roomType}.`;
+        generatedText = `${entity} requires a room of type '${builder.roomType}'.`;
         break;
       case "Gap Limit":
         generatedText = `${entity} must have a gap of ${builder.gap} between classes.`;
@@ -142,7 +149,7 @@ export default function ConstraintOverview() {
         generatedText = `The University is open from ${builder.startTime} to ${builder.endTime}.`;
         break;
       case "Academic Calendar":
-        generatedText = `${builder.semesterName} starts on ${draft.valid_from || '[Date]'} and ends on ${draft.valid_to || '[Date]'}.`;
+        generatedText = `${builder.semesterSeason} Semester ${builder.semesterYear} starts on ${draft.valid_from || '[Date]'} and ends on ${draft.valid_to || '[Date]'}.`;
         break;
       case "Time Definition":
         generatedText = `Standard lecture slots are ${builder.slotDuration} minutes long with a ${builder.breakDuration} minute break.`;
@@ -157,7 +164,10 @@ export default function ConstraintOverview() {
 
     setDraft(prev => ({ ...prev, rule_text: generatedText }));
 
-  }, [draft.category, draft.scope, draft.target_id, draft.valid_from, draft.valid_to, builder, modalOpen, targets]);
+  }, [
+    draft.category, draft.scope, draft.target_id, draft.valid_from, draft.valid_to,
+    builder, modalOpen, targets
+  ]);
 
   async function loadData() {
     try {
@@ -171,27 +181,48 @@ export default function ConstraintOverview() {
       ]);
 
       setConstraints(cRes || []);
+
+      // Extract unique room types from the database
+      const uniqueRoomTypes = [...new Set((rRes || []).map(r => r.type))].filter(Boolean);
+      setRoomTypes(uniqueRoomTypes);
+
       setTargets({
         LECTURER: (lRes || []).map(x => ({ id: x.id, name: `${x.first_name} ${x.last_name}` })),
         GROUP: (gRes || []).map(x => ({ id: x.id, name: x.name })),
         MODULE: (mRes || []).map(x => ({ id: x.module_code, name: x.name })),
         ROOM: (rRes || []).map(x => ({ id: x.id, name: x.name })),
         PROGRAM: (pRes || []).map(x => ({ id: x.id, name: x.name })),
-        GLOBAL: [{ id: 0, name: "Global (All)" }]
+        UNIVERSITY: [{ id: 0, name: "Entire University" }]
       });
+
+      // Set default room type if available
+      if (uniqueRoomTypes.length > 0) {
+        setBuilder(prev => ({ ...prev, roomType: uniqueRoomTypes[0] }));
+      }
+
     } catch (e) { console.error("Load Error", e); }
   }
 
   function openAdd() {
     setEditingId(null);
     setDraft({
-      name: "", category: "University Policy", scope: "Global", target_id: "0",
+      name: "", category: "University Policy", scope: "University", target_id: "0",
       valid_from: "", valid_to: "", rule_text: "", is_enabled: true
     });
-    setBuilder({
-        day: "Friday", roomType: "Computer Lab", limit: "4 hours", gap: "at least 1 hour",
-        startTime: "08:00", endTime: "20:00", semesterName: "Winter 2026", slotDuration: "90", breakDuration: "15", workloadLimit: "18"
-    });
+    // Reset builder defaults
+    setBuilder(prev => ({
+        ...prev,
+        day: "Friday",
+        limit: "4 hours",
+        gap: "at least 1 hour",
+        startTime: "08:00",
+        endTime: "20:00",
+        semesterSeason: "Winter",
+        semesterYear: new Date().getFullYear(),
+        slotDuration: "90",
+        breakDuration: "15",
+        workloadLimit: "18"
+    }));
     setModalOpen(true);
   }
 
@@ -225,8 +256,7 @@ export default function ConstraintOverview() {
 
   // --- Change Scope -> Reset Category ---
   const handleScopeChange = (newScope) => {
-      const allowedCategories = SCOPE_CATEGORIES[newScope] || SCOPE_CATEGORIES["Global"];
-      // Default to the first allowed category for this scope
+      const allowedCategories = SCOPE_CATEGORIES[newScope] || SCOPE_CATEGORIES["University"];
       const defaultCategory = allowedCategories[0].value;
 
       setDraft({
@@ -237,10 +267,9 @@ export default function ConstraintOverview() {
       });
   };
 
-  // --- Change Category -> Smart Target Reset (Optional) ---
   const handleCategoryChange = (newCategory) => {
-    // If selecting "Legal Requirement" (Workload), it usually applies to ALL lecturers
     let newTarget = draft.target_id;
+    // Smart Defaults
     if (newCategory === "Legal Requirement" && draft.scope === "Lecturer") {
         newTarget = "0";
     }
@@ -261,8 +290,18 @@ export default function ConstraintOverview() {
     if (draft.category === "Academic Calendar") {
         return (
             <div style={{display:'flex', gap:'12px', alignItems:'center'}}>
-                <input style={{...styles.input, flex:1}} placeholder="e.g. Winter Semester 2026" value={builder.semesterName} onChange={e => setBuilder({...builder, semesterName: e.target.value})} />
-                <span style={{fontSize:'0.85rem', color:'#64748b', fontStyle:'italic'}}>(Requires valid dates below)</span>
+                <select style={{...styles.select, width:'auto'}} value={builder.semesterSeason} onChange={e => setBuilder({...builder, semesterSeason: e.target.value})}>
+                    <option value="Winter">Winter</option>
+                    <option value="Summer">Summer</option>
+                </select>
+                <select style={{...styles.select, width:'auto'}} value={builder.semesterYear} onChange={e => setBuilder({...builder, semesterYear: e.target.value})}>
+                    {/* Simple year picker: Current year +/- 2 */}
+                    {[0,1,2,3].map(i => {
+                        const y = new Date().getFullYear() + i;
+                        return <option key={y} value={y}>{y}</option>;
+                    })}
+                </select>
+                <span style={{fontSize:'0.85rem', color:'#64748b', fontStyle:'italic'}}>(Set actual start/end dates below)</span>
             </div>
         );
     }
@@ -297,13 +336,13 @@ export default function ConstraintOverview() {
             </div>
         );
     }
-    if (draft.category === "Time Preference") {
+    if (draft.category === "Unavailable Days") {
         return (
             <div style={{display:'flex', gap:'12px', alignItems:'center'}}>
                 <select style={{...styles.select, width:'auto'}} value={builder.day} onChange={e => setBuilder({...builder, day: e.target.value})}>
                     {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
-                <span>is strictly blocked / unavailable.</span>
+                <span>is unavailable / closed.</span>
             </div>
         );
     }
@@ -312,7 +351,11 @@ export default function ConstraintOverview() {
             <div style={{display:'flex', gap:'12px', alignItems:'center'}}>
                 <span>Requires a room of type:</span>
                 <select style={{...styles.select, width:'auto'}} value={builder.roomType} onChange={e => setBuilder({...builder, roomType: e.target.value})}>
-                    {["Lecture Classroom", "Computer Lab", "Seminar Room", "Physics Lab"].map(r => <option key={r} value={r}>{r}</option>)}
+                    {roomTypes.length > 0 ? (
+                        roomTypes.map(r => <option key={r} value={r}>{r}</option>)
+                    ) : (
+                        <option disabled>No room types found</option>
+                    )}
                 </select>
             </div>
         );
@@ -321,8 +364,7 @@ export default function ConstraintOverview() {
     return <div style={{color:'#64748b', fontStyle:'italic'}}>Use the text box below to describe a custom rule.</div>;
   };
 
-  // Helper to get allowed categories for current scope
-  const currentCategories = SCOPE_CATEGORIES[draft.scope] || SCOPE_CATEGORIES["Global"];
+  const currentCategories = SCOPE_CATEGORIES[draft.scope] || SCOPE_CATEGORIES["University"];
 
   return (
     <div style={styles.container}>
@@ -403,9 +445,9 @@ export default function ConstraintOverview() {
                 <button onClick={() => setModalOpen(false)} style={{border:'none', background:'transparent', fontSize:'1.5rem', cursor:'pointer', color:'#94a3b8'}}>×</button>
              </div>
 
-             {/* 1. NAME & DATES */}
+             {/* 1. NAME */}
              <div style={styles.formGroup}>
-                <label style={styles.label}>Rule Internal Name</label>
+                <label style={styles.label}>Rule Name</label>
                 <input
                   style={styles.input}
                   placeholder="e.g. Winter Semester Dates"
@@ -414,25 +456,7 @@ export default function ConstraintOverview() {
                 />
              </div>
 
-             <div style={styles.formRow}>
-               <div style={{flex:1}}>
-                 <label style={styles.label}>Valid From (Optional)</label>
-                 <input type="date" style={styles.input} value={draft.valid_from} onChange={e => setDraft({...draft, valid_from: e.target.value})} />
-               </div>
-               <div style={{flex:1}}>
-                 <label style={styles.label}>Valid To (Optional)</label>
-                 <input type="date" style={styles.input} value={draft.valid_to} onChange={e => setDraft({...draft, valid_to: e.target.value})} />
-               </div>
-             </div>
-
-             <div style={{borderTop:'1px solid #e2e8f0', margin:'20px 0'}}></div>
-
-             {/* 2. CONTEXT SELECTION */}
-             <div style={styles.sectionTitle}>
-                 <span style={{background:'#3b82f6', color:'white', width:'24px', height:'24px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.8rem'}}>1</span>
-                 Context & Scope
-             </div>
-
+             {/* 2. CONTEXT */}
              <div style={styles.formRow}>
                <div style={{flex:1}}>
                   <label style={styles.label}>Scope (Who does this apply to?)</label>
@@ -441,7 +465,7 @@ export default function ConstraintOverview() {
                   </select>
                </div>
                <div style={{flex:1}}>
-                  <label style={styles.label}>Specific Target</label>
+                  <label style={styles.label}>Target</label>
                   <select style={styles.select} value={draft.target_id} onChange={e => setDraft({...draft, target_id: e.target.value})}>
                     <option value="0">-- All / Global --</option>
                     {(targets[draft.scope.toUpperCase()] || []).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -449,15 +473,10 @@ export default function ConstraintOverview() {
                </div>
              </div>
 
-             {/* 3. RULE BUILDER */}
-             <div style={styles.sectionTitle}>
-                 <span style={{background:'#3b82f6', color:'white', width:'24px', height:'24px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.8rem'}}>2</span>
-                 Rule Definition
-             </div>
-
+             {/* 3. BUILDER */}
              <div style={styles.builderBox}>
                 <div style={{marginBottom:'15px'}}>
-                    <label style={{fontSize:'0.85rem', color:'#64748b', marginBottom:'6px', display:'block', textTransform:'uppercase', letterSpacing:'0.05em', fontWeight:'700'}}>Rule Category</label>
+                    <label style={styles.label}>Rule Category</label>
                     <select style={styles.select} value={draft.category} onChange={e => handleCategoryChange(e.target.value)}>
                         {currentCategories.map(opt => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -479,12 +498,26 @@ export default function ConstraintOverview() {
                   onChange={e => setDraft({...draft, rule_text: e.target.value})}
                 />
                 <div style={{fontSize:'0.8rem', color:'#64748b', marginTop:'6px', display:'flex', justifyContent:'space-between'}}>
-                    <span>* The scheduler will use this exact text.</span>
                     <label style={{cursor:'pointer', fontWeight:'600', color:'#0f172a', display:'flex', alignItems:'center', gap:'6px'}}>
                         <input type="checkbox" checked={draft.is_enabled} onChange={e => setDraft({...draft, is_enabled: e.target.checked})} />
                         Active Rule
                     </label>
                 </div>
+             </div>
+
+             {/* 5. VALIDITY (MOVED TO BOTTOM) */}
+             <div style={{marginTop:'20px', borderTop:'1px solid #e2e8f0', paddingTop:'15px'}}>
+                 <div style={styles.sectionLabel}>Validity Window (Optional)</div>
+                 <div style={styles.formRow}>
+                   <div style={{flex:1}}>
+                     <label style={styles.label}>Valid From</label>
+                     <input type="date" style={styles.input} value={draft.valid_from} onChange={e => setDraft({...draft, valid_from: e.target.value})} />
+                   </div>
+                   <div style={{flex:1}}>
+                     <label style={styles.label}>Valid To</label>
+                     <input type="date" style={styles.input} value={draft.valid_to} onChange={e => setDraft({...draft, valid_to: e.target.value})} />
+                   </div>
+                 </div>
              </div>
 
              <div style={{display:'flex', justifyContent:'flex-end', gap:'12px', marginTop:'24px'}}>
