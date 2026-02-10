@@ -209,16 +209,15 @@ export default function ConstraintOverview() {
 
       setConstraints(cRes || []);
 
-      // 1. EXTRACT ROOM TYPES
+      // 1. EXTRACT ROOM TYPES (Fetch from DB)
       const uniqueRoomTypes = [...new Set((rRes || []).map(r => r.type))].filter(Boolean);
       setRoomTypes(uniqueRoomTypes);
 
-      // 2. EXTRACT LOCATIONS (CAMPUSES) from Rooms
-      // We look for unique 'location' strings in the rooms table
-      const uniqueLocations = [...new Set((rRes || []).map(r => r.location))].filter(Boolean);
+      // 2. HARDCODED LOCATIONS (Per user request)
+      const staticLocations = ["Berlin", "Düsseldorf", "Munich"];
 
       // Map locations to a pseudo-ID (10000 + index) so they fit in the 'Integer' target_id column
-      const campusTargets = uniqueLocations.map((loc, idx) => ({
+      const campusTargets = staticLocations.map((loc, idx) => ({
           id: 10000 + idx,
           name: `Campus: ${loc}`
       }));
@@ -230,7 +229,7 @@ export default function ConstraintOverview() {
         ROOM: (rRes || []).map(x => ({ id: x.id, name: x.name })),
         PROGRAM: (pRes || []).map(x => ({ id: x.id, name: x.name })),
 
-        // Combine Global + Extracted Campuses
+        // Combine Global + Static Campuses
         UNIVERSITY: [{ id: 0, name: "Entire University" }, ...campusTargets]
       });
 
