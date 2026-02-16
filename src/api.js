@@ -119,7 +119,7 @@ const api = {
   createSemester(payload) { return request("/semesters/", { method: "POST", body: JSON.stringify(payload) }); },
   deleteSemester(id) { return request(`/semesters/${id}`, { method: "DELETE" }); },
 
-  // ✅ OFFERED MODULES (ESTA ES LA PARTE QUE TE FALTABA O ESTABA DAÑADA)
+  // ✅ OFFERED MODULES
   getOfferedModules(semester) {
     const query = semester ? `?semester=${encodeURIComponent(semester)}` : "";
     return request(`/offered-modules/${query}`);
@@ -129,6 +129,18 @@ const api = {
   },
   deleteOfferedModule(id) {
     return request(`/offered-modules/${id}`, { method: "DELETE" });
+  },
+
+  // ✅ SCHEDULE (HORARIO - NUEVO)
+  getSchedule(semester) {
+    const query = semester ? `?semester=${encodeURIComponent(semester)}` : "";
+    return request(`/schedule/${query}`);
+  },
+  createScheduleEntry(payload) {
+    return request("/schedule/", { method: "POST", body: JSON.stringify(payload) });
+  },
+  deleteScheduleEntry(id) {
+    return request(`/schedule/${id}`, { method: "DELETE" });
   },
 };
 

@@ -164,3 +164,27 @@ class OfferedModule(Base):
     # Relaciones para leer nombres bonitos
     module = relationship("Module")
     lecturer = relationship("Lecturer")
+
+
+class ScheduleEntry(Base):
+    __tablename__ = "schedule_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # 1. QUÉ: Vinculamos con la materia ofertada (Tu tabla anterior)
+    offered_module_id = Column(Integer, ForeignKey("offered_modules.id", ondelete="CASCADE"), nullable=False)
+
+    # 2. DÓNDE: Vinculamos con el salón
+    room_id = Column(Integer, ForeignKey("rooms.id"), nullable=True)
+
+    # 3. CUÁNDO: Día y hora
+    day_of_week = Column(String, nullable=False)  # "Monday", "Tuesday"...
+    start_time = Column(String, nullable=False)  # "08:00"
+    end_time = Column(String, nullable=False)  # "10:00"
+
+    # Campos extra útiles
+    semester = Column(String, nullable=False)  # Para filtrar rápido por semestre
+
+    # Relaciones para que el frontend pueda leer los nombres
+    offered_module = relationship("OfferedModule")
+    room = relationship("Room")
