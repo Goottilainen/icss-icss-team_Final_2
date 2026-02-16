@@ -26,8 +26,8 @@ export default function TimetableManager() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isListView, setIsListView] = useState(false);
 
-  // ESTADO NUEVO: TIPO DE SEMESTRE (Winter vs Summer)
-  const [semesterType, setSemesterType] = useState("Winter"); // "Winter" | "Summer"
+  // TIPO DE SEMESTRE (Winter vs Summer)
+  const [semesterType, setSemesterType] = useState("Winter");
 
   const [newEntry, setNewEntry] = useState({ day: "", time: "", offered_module_id: "", room_id: "" });
 
@@ -204,23 +204,21 @@ export default function TimetableManager() {
     );
   };
 
-  // 2. VISTA SEMESTRAL COMPLETA (WINTER vs SUMMER)
+  // 2. VISTA SEMESTRAL COMPLETA (UNIFORME AZUL)
   const renderSemesterPlan = () => {
-    // Definimos los meses según el tipo seleccionado (Winter o Summer)
-    // Winter: Oct - Feb
-    // Summer: Mar - Aug
     let months = [];
     if (semesterType === "Winter") {
+      // Octubre a Febrero
       months = [
-        { name: "October", days: 31, startDay: 2 }, // startDay: 0=Sun, 1=Mon...
+        { name: "October", days: 31, startDay: 2 },
         { name: "November", days: 30, startDay: 5 },
         { name: "December", days: 31, startDay: 0 },
         { name: "January", days: 31, startDay: 3 },
         { name: "February", days: 28, startDay: 6 }
       ];
     } else {
+      // Abril a Agosto (Verano)
       months = [
-        { name: "March", days: 31, startDay: 0 },
         { name: "April", days: 30, startDay: 3 },
         { name: "May", days: 31, startDay: 5 },
         { name: "June", days: 30, startDay: 1 },
@@ -231,7 +229,7 @@ export default function TimetableManager() {
 
     return (
       <div style={{marginTop: "20px"}}>
-        {/* SELECTOR DE TIPO DE SEMESTRE (Winter / Summer) */}
+        {/* SELECTOR DE TIPO DE SEMESTRE (Uniforme Azul) */}
         <div style={{display:"flex", justifyContent:"center", marginBottom:"20px", gap:"10px"}}>
           <button
             onClick={() => setSemesterType("Winter")}
@@ -239,27 +237,27 @@ export default function TimetableManager() {
               padding: "8px 20px", borderRadius: "20px", border: "1px solid #2b4a8e",
               background: semesterType === "Winter" ? "#2b4a8e" : "white",
               color: semesterType === "Winter" ? "white" : "#2b4a8e",
-              fontWeight: "bold", cursor: "pointer"
+              fontWeight: "bold", cursor: "pointer", transition: "all 0.2s"
             }}
           > Winter Semester (Oct - Feb)</button>
 
           <button
             onClick={() => setSemesterType("Summer")}
             style={{
-              padding: "8px 20px", borderRadius: "20px", border: "1px solid #f59f00",
-              background: semesterType === "Summer" ? "#f59f00" : "white",
-              color: semesterType === "Summer" ? "white" : "#f59f00",
-              fontWeight: "bold", cursor: "pointer"
+              padding: "8px 20px", borderRadius: "20px", border: "1px solid #2b4a8e",
+              background: semesterType === "Summer" ? "#2b4a8e" : "white",
+              color: semesterType === "Summer" ? "white" : "#2b4a8e",
+              fontWeight: "bold", cursor: "pointer", transition: "all 0.2s"
             }}
-          > Summer Semester (Mar - Aug)</button>
+          > Summer Semester (Apr - Aug)</button>
         </div>
 
         {/* TABLA HORIZONTAL DE MESES */}
         <div style={{ display: "flex", gap: "20px", overflowX: "auto", paddingBottom: "20px" }}>
           {months.map((month, mIdx) => (
             <div key={mIdx} style={{ minWidth: "300px", background: "white", border: "1px solid #ddd", borderRadius: "8px", overflow: "hidden" }}>
-              {/* Header del Mes */}
-              <div style={{ background: semesterType === "Winter" ? "#2b4a8e" : "#f59f00", color: "white", padding: "10px", textAlign: "center", fontWeight: "bold" }}>
+              {/* Header del Mes (Siempre Azul) */}
+              <div style={{ background: "#2b4a8e", color: "white", padding: "10px", textAlign: "center", fontWeight: "bold" }}>
                 {month.name}
               </div>
 
@@ -280,12 +278,11 @@ export default function TimetableManager() {
                     const dayName = dayNames[dayOfWeekIndex];
                     const isWeekend = dayName === "Saturday" || dayName === "Sunday";
 
-                    // Buscar clases para este día (Proyección)
                     const dailyClasses = filteredData.filter(c => c.day_of_week === dayName);
 
                     return (
                       <tr key={dayNum} style={{
-                        background: isWeekend ? "#e9ecef" : "white", // Gris si es fin de semana
+                        background: isWeekend ? "#e9ecef" : "white",
                         borderBottom: "1px solid #f1f3f5"
                       }}>
                         <td style={{ padding: "6px", textAlign: "center", fontWeight: "bold", color: "#666", borderRight: "1px solid #eee" }}>
@@ -393,7 +390,7 @@ export default function TimetableManager() {
                           <div style={{ fontWeight: "700", fontSize: "0.85rem", color: "#212529" }}>{entry.module_name}</div>
                           <div style={{ fontSize: "0.75rem", color: "#495057" }}>{entry.lecturer_name}</div>
                         </div>
-                        <div style={{ fontSize: "0.75rem", fontWeight: "600" }}>📍 {entry.room_name}</div>
+                        <div style={{ fontSize: "0.75rem", fontWeight: "600" }}> {entry.room_name}</div>
                         <button onClick={(e) => handleDelete(entry.id, e)} style={{ position: "absolute", top: "5px", right: "5px", background: "none", border: "none", color: "#fa5252", cursor: "pointer", fontSize: "14px" }}>✕</button>
                       </div>
                     ) : null}
