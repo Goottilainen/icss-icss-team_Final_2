@@ -28,6 +28,27 @@ export default function TimetableManager() {
     "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"
   ];
 
+  // --- PALETA DE COLORES PASTEL (Como en tu foto) ---
+  const pastelColors = [
+    { bg: "#fff9c4", border: "#fbc02d", text: "#5d4037" }, // Amarillo Pastel
+    { bg: "#c8e6c9", border: "#43a047", text: "#1b5e20" }, // Verde Pastel
+    { bg: "#bbdefb", border: "#1976d2", text: "#0d47a1" }, // Azul Pastel
+    { bg: "#f8bbd0", border: "#c2185b", text: "#880e4f" }, // Rosa Pastel
+    { bg: "#e1bee7", border: "#7b1fa2", text: "#4a148c" }, // Lila Pastel
+    { bg: "#ffe0b2", border: "#f57c00", text: "#e65100" }, // Naranja Pastel
+  ];
+
+  // Función para obtener siempre el mismo color para la misma materia
+  const getColorForModule = (moduleName) => {
+    if (!moduleName) return pastelColors[0];
+    let hash = 0;
+    for (let i = 0; i < moduleName.length; i++) {
+      hash = moduleName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % pastelColors.length;
+    return pastelColors[index];
+  };
+
   // 1. CARGAR SEMESTRES
   useEffect(() => {
     async function loadSemesters() {
@@ -40,7 +61,7 @@ export default function TimetableManager() {
     loadSemesters();
   }, []);
 
-  // 2. CARGAR TODO LO DEMÁS CUANDO CAMBIA EL SEMESTRE
+  // 2. CARGAR TODO LO DEMÁS
   useEffect(() => {
     if (selectedSemester) {
       loadSchedule();
@@ -60,37 +81,22 @@ export default function TimetableManager() {
 
   async function loadDropdowns() {
     try {
-      // Cargamos las materias disponibles para este semestre
       const mods = await api.getOfferedModules(selectedSemester);
       setOfferedModules(mods);
-
-      // Cargamos los salones
       const r = await api.getRooms();
       setRooms(r);
     } catch (e) { console.error("Error loading dropdowns", e); }
   }
 
-  // --- LÓGICA DE INTERACCIÓN ---
-
-  // Al hacer clic en una casilla vacía
+  // --- INTERACCIÓN ---
   const handleCellClick = (day, time) => {
-    setNewEntry({
-      day: day,
-      time: time,
-      offered_module_id: "",
-      room_id: ""
-    });
+    setNewEntry({ day, time, offered_module_id: "", room_id: "" });
     setShowModal(true);
   };
 
-  // Guardar nueva clase
   const handleSave = async () => {
-    if (!newEntry.offered_module_id) return alert("Please select a module");
-    if (!newEntry.room_id) return alert("Please select a room");
-
+    if (!newEntry.offered_module_id || !newEntry.room_id) return alert("Please select module and room");
     try {
-      // Calculamos hora fin (asumimos bloques de 1 hora por defecto para simplificar)
-      // "08:00" -> prefix "08" -> int 8 -> +1 -> 9 -> "09:00"
       const startHour = parseInt(newEntry.time.split(":")[0]);
       const endHour = startHour + 1;
       const endTime = `${endHour < 10 ? '0' : ''}${endHour}:00`;
@@ -103,17 +109,13 @@ export default function TimetableManager() {
         end_time: endTime,
         semester: selectedSemester
       });
-
       setShowModal(false);
-      loadSchedule(); // Recargar para ver el cambio
-    } catch (e) {
-      alert("Error saving: " + e.message);
-    }
+      loadSchedule();
+    } catch (e) { alert("Error saving: " + e.message); }
   };
 
-  // Borrar clase
   const handleDelete = async (id, e) => {
-    e.stopPropagation(); // Evitar que abra el modal al hacer clic en borrar
+    e.stopPropagation();
     if (!window.confirm("Remove this class?")) return;
     try {
       await api.deleteScheduleEntry(id);
@@ -129,136 +131,185 @@ export default function TimetableManager() {
   };
 
   return (
-    <div style={{ padding: "20px", fontFamily: "Segoe UI, sans-serif" }}>
-      {/* HEADER */}
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px", borderBottom: "1px solid #ccc", paddingBottom: "15px" }}>
-        <div>
-          <h2 style={{ margin: 0 }}>Timetable View</h2>
-          <div style={{ marginTop: "5px", color: "#666" }}>
-            <label style={{ marginRight: "10px" }}>Semester:</label>
+    <div style={{ padding: "30px", fontFamily: "'Inter', 'Segoe UI', sans-serif", background: "#f8f9fa", minHeight: "100vh" }}>
+
+      {/* --- HEADER MODERNO (Como la foto) --- */}
+      <div style={{ marginBottom: "30px" }}>
+        <h2 style={{ margin: "0 0 20px 0", color: "#343a40", fontSize: "1.8rem" }}>Schedule Overview</h2>
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", alignItems: "center", background: "white", padding: "15px 20px", borderRadius: "12px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+
+          {/* Semester Filter */}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <label style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#868e96", marginBottom: "4px", textTransform: "uppercase" }}>Semester</label>
             <select
               value={selectedSemester}
               onChange={e => setSelectedSemester(e.target.value)}
-              style={{ padding: "5px", fontWeight: "bold" }}
+              style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #dee2e6", background: "#f8f9fa", fontWeight: "600", minWidth: "200px" }}
             >
-              {semesters.length === 0 && <option>Loading...</option>}
               {semesters.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
             </select>
           </div>
-        </div>
-        <div>
-           {/* Botones de vista (Solo visuales por ahora) */}
-          <button style={{ padding: "8px 15px", marginRight: "10px", background:"#007bff", color:"white", border:"none", borderRadius:"4px" }}>📅 Calendar</button>
-          <button style={{ padding: "8px 15px", background: "#e2e6ea", border:"none", borderRadius:"4px", color:"#666" }}>📄 List</button>
+
+          {/* Placeholders visuales (Groups, Lecturer) para que se vea pro */}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <label style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#868e96", marginBottom: "4px", textTransform: "uppercase" }}>Groups</label>
+            <select disabled style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #dee2e6", background: "#e9ecef", color: "#aaa", minWidth: "150px" }}>
+              <option>All Groups</option>
+            </select>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <label style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#868e96", marginBottom: "4px", textTransform: "uppercase" }}>Lecturer</label>
+            <select disabled style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #dee2e6", background: "#e9ecef", color: "#aaa", minWidth: "150px" }}>
+              <option>All Lecturers</option>
+            </select>
+          </div>
+
+          <div style={{ marginLeft: "auto", display: "flex", gap: "10px" }}>
+             <span style={{ fontSize: "0.9rem", color: "#495057", fontWeight: "600" }}>📅 Calendar View</span>
+             <label className="switch" style={{ position: "relative", display: "inline-block", width: "40px", height: "20px" }}>
+                <input type="checkbox" checked readOnly />
+                <span style={{ position: "absolute", cursor: "pointer", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#228be6", borderRadius: "34px" }}></span>
+                <span style={{ position: "absolute", content: "", height: "14px", width: "14px", left: "22px", bottom: "3px", backgroundColor: "white", borderRadius: "50%" }}></span>
+             </label>
+          </div>
         </div>
       </div>
 
-      {/* REJILLA */}
-      {loading ? <p>Loading timetable...</p> : (
-        <div style={{ overflowX: "auto", background: "white", boxShadow: "0 2px 10px rgba(0,0,0,0.1)", borderRadius: "8px" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "800px" }}>
-            <thead>
-              <tr style={{ background: "#f1f3f5", color: "#495057" }}>
-                <th style={{ padding: "10px", width: "80px", borderRight: "1px solid #ddd", borderBottom: "2px solid #ddd" }}>Time</th>
-                {days.map(day => (
-                  <th key={day} style={{ padding: "10px", borderRight: "1px solid #ddd", borderBottom: "2px solid #ddd" }}>{day}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {hours.map(hour => (
-                <tr key={hour} style={{ borderBottom: "1px solid #eee" }}>
-                  <td style={{ padding: "10px", fontWeight: "bold", color: "#868e96", borderRight: "1px solid #ddd", textAlign: "center", fontSize: "0.85rem", background:"#fafafa" }}>
-                    {hour}
-                  </td>
-                  {days.map(day => {
-                    const entry = getEntryForSlot(day, hour);
-                    return (
-                      <td
-                        key={day}
-                        onClick={() => !entry && handleCellClick(day, hour)} // Solo click si está vacío
-                        style={{
-                          borderRight: "1px solid #eee", height: "70px", verticalAlign: "top", padding: "5px",
-                          cursor: entry ? "default" : "pointer",
-                          background: entry ? "white" : "transparent"
-                        }}
-                        onMouseEnter={(e) => { if(!entry) e.currentTarget.style.background = "#f8f9fa"; }}
-                        onMouseLeave={(e) => { if(!entry) e.currentTarget.style.background = "transparent"; }}
-                      >
-                        {entry ? (
-                          <div style={{
-                            background: "#e7f5ff", borderLeft: "4px solid #339af0", padding: "6px",
-                            borderRadius: "4px", fontSize: "0.8rem", position: "relative", boxShadow:"0 1px 3px rgba(0,0,0,0.1)"
-                          }}>
-                            <div style={{fontWeight:"bold", color:"#1c7ed6", marginBottom:"2px"}}>{entry.module_name}</div>
-                            <div style={{color:"#495057"}}>👨‍🏫 {entry.lecturer_name}</div>
-                            <div style={{color:"#868e96", fontSize:"0.75rem"}}>📍 {entry.room_name}</div>
-
-                            {/* Botón borrar pequeñito */}
-                            <button
-                              onClick={(e) => handleDelete(entry.id, e)}
-                              style={{
-                                position: "absolute", top: "2px", right: "2px",
-                                background:"transparent", border:"none", color:"#fa5252",
-                                cursor:"pointer", fontWeight:"bold", fontSize:"12px"
-                              }}
-                            >✕</button>
-                          </div>
-                        ) : (
-                          <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0 }}>
-                            <span style={{color:"#ccc", fontSize:"1.5rem"}}>+</span>
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
+      {/* --- CALENDARIO ESTILO GOOGLE CALENDAR --- */}
+      {loading ? <p>Loading schedule...</p> : (
+        <div style={{ background: "white", borderRadius: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "900px" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #dee2e6" }}>
+                  <th style={{ padding: "15px", width: "60px" }}></th> {/* Corner vacía */}
+                  {days.map(day => (
+                    <th key={day} style={{ padding: "15px", textAlign: "left", color: "#495057", fontSize: "1rem", fontWeight: "bold" }}>
+                      {day}
+                      {/* Fecha simulada para efecto visual */}
+                      <div style={{ fontSize: "0.75rem", color: "#adb5bd", fontWeight: "normal", marginTop: "4px" }}>02.06.25</div>
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {hours.map(hour => (
+                  <tr key={hour}>
+                    {/* Columna de Hora */}
+                    <td style={{
+                      padding: "10px", verticalAlign: "top", textAlign: "center",
+                      color: "#868e96", fontSize: "0.8rem", fontWeight: "600",
+                      borderRight: "1px solid #f1f3f5", borderBottom: "1px solid #f1f3f5", width: "70px"
+                    }}>
+                      {hour}
+                    </td>
+
+                    {/* Celdas del Calendario */}
+                    {days.map(day => {
+                      const entry = getEntryForSlot(day, hour);
+                      const colors = entry ? getColorForModule(entry.module_name) : null;
+
+                      return (
+                        <td
+                          key={day}
+                          onClick={() => !entry && handleCellClick(day, hour)}
+                          style={{
+                            borderRight: "1px solid #f8f9fa", borderBottom: "1px solid #f1f3f5",
+                            height: "90px", padding: "8px", verticalAlign: "top", position: "relative",
+                            cursor: entry ? "default" : "pointer",
+                            transition: "background 0.2s"
+                          }}
+                          onMouseEnter={(e) => { if(!entry) e.currentTarget.style.background = "#f8f9fa"; }}
+                          onMouseLeave={(e) => { if(!entry) e.currentTarget.style.background = "transparent"; }}
+                        >
+                          {entry ? (
+                            <div style={{
+                              background: colors.bg,
+                              borderLeft: `5px solid ${colors.border}`,
+                              color: colors.text,
+                              padding: "8px 10px",
+                              borderRadius: "6px",
+                              height: "100%",
+                              boxShadow: "0 2px 5px rgba(0,0,0,0.05)",
+                              display: "flex", flexDirection: "column", justifyContent: "space-between",
+                              boxSizing: "border-box"
+                            }}>
+                              <div>
+                                <div style={{ fontWeight: "700", fontSize: "0.85rem", marginBottom: "4px", lineHeight: "1.2" }}>
+                                  {entry.module_name}
+                                </div>
+                                <div style={{ fontSize: "0.75rem", opacity: 0.9 }}>
+                                  {entry.lecturer_name}
+                                </div>
+                              </div>
+                              <div style={{ fontSize: "0.75rem", fontWeight: "600", marginTop: "4px" }}>
+                                📍 {entry.room_name}
+                              </div>
+
+                              {/* Delete Button (Oculto hasta hacer hover en la tarjeta si quieres, aqui fijo) */}
+                              <button
+                                onClick={(e) => handleDelete(entry.id, e)}
+                                style={{
+                                  position: "absolute", top: "5px", right: "5px",
+                                  background: "rgba(255,255,255,0.6)", border: "none", borderRadius: "50%",
+                                  width: "20px", height: "20px", cursor: "pointer", color: "#e03131",
+                                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px"
+                                }}
+                                title="Delete Class"
+                              >✕</button>
+                            </div>
+                          ) : (
+                            // Placeholder invisible para mantener la altura
+                            <div style={{ height: "100%" }}></div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* MODAL PARA AGREGAR CLASE */}
+      {/* --- MODAL (Estilo mejorado) --- */}
       {showModal && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
-          <div style={{ background: "white", padding: "25px", borderRadius: "8px", width: "400px", boxShadow: "0 4px 15px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ marginTop: 0, color: "#333" }}>Add Class</h3>
-            <p style={{ color: "#666", marginBottom: "20px" }}>
-              Scheduling for <strong>{newEntry.day}</strong> at <strong>{newEntry.time}</strong>
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(2px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
+          <div style={{ background: "white", padding: "30px", borderRadius: "16px", width: "420px", boxShadow: "0 10px 40px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ marginTop: 0, color: "#212529", fontSize: "1.4rem" }}>Add Session</h3>
+            <p style={{ color: "#868e96", marginBottom: "25px", fontSize: "0.95rem" }}>
+              {newEntry.day}, starting at {newEntry.time}
             </p>
 
-            <label style={{display:"block", marginBottom:"5px", fontWeight:"bold"}}>Module:</label>
+            <label style={{display:"block", marginBottom:"8px", fontWeight:"600", color:"#343a40", fontSize:"0.9rem"}}>Module</label>
             <select
-              style={{width:"100%", padding:"10px", marginBottom:"15px", borderRadius:"4px", border:"1px solid #ccc"}}
+              style={{width:"100%", padding:"12px", marginBottom:"20px", borderRadius:"8px", border:"1px solid #ced4da", background:"#f8f9fa", fontSize:"1rem"}}
               value={newEntry.offered_module_id}
               onChange={e => setNewEntry({...newEntry, offered_module_id: e.target.value})}
             >
-              <option value="">-- Select Module --</option>
+              <option value="">Select a Module...</option>
               {offeredModules.map(m => (
-                <option key={m.id} value={m.id}>
-                  {m.module_name} ({m.lecturer_name})
-                </option>
+                <option key={m.id} value={m.id}>{m.module_name} ({m.lecturer_name})</option>
               ))}
             </select>
 
-            <label style={{display:"block", marginBottom:"5px", fontWeight:"bold"}}>Room:</label>
+            <label style={{display:"block", marginBottom:"8px", fontWeight:"600", color:"#343a40", fontSize:"0.9rem"}}>Room</label>
             <select
-              style={{width:"100%", padding:"10px", marginBottom:"15px", borderRadius:"4px", border:"1px solid #ccc"}}
+              style={{width:"100%", padding:"12px", marginBottom:"30px", borderRadius:"8px", border:"1px solid #ced4da", background:"#f8f9fa", fontSize:"1rem"}}
               value={newEntry.room_id}
               onChange={e => setNewEntry({...newEntry, room_id: e.target.value})}
             >
-              <option value="">-- Select Room --</option>
+              <option value="">Select a Room...</option>
               {rooms.map(r => (
-                <option key={r.id} value={r.id}>
-                  {r.name} (Cap: {r.capacity})
-                </option>
+                <option key={r.id} value={r.id}>{r.name} (Cap: {r.capacity})</option>
               ))}
             </select>
 
-            <div style={{ textAlign: "right", marginTop: "10px" }}>
-              <button onClick={() => setShowModal(false)} style={{ padding: "10px 20px", marginRight: "10px", background: "transparent", border: "1px solid #ccc", borderRadius:"4px", cursor:"pointer" }}>Cancel</button>
-              <button onClick={handleSave} style={{ padding: "10px 20px", background: "#228be6", color: "white", border: "none", borderRadius:"4px", cursor:"pointer", fontWeight:"bold" }}>Save Class</button>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <button onClick={() => setShowModal(false)} style={{ padding: "12px 24px", background: "transparent", border: "1px solid #ced4da", borderRadius:"8px", cursor:"pointer", fontWeight:"600", color:"#495057" }}>Cancel</button>
+              <button onClick={handleSave} style={{ padding: "12px 24px", background: "#228be6", color: "white", border: "none", borderRadius:"8px", cursor:"pointer", fontWeight:"600", boxShadow:"0 4px 12px rgba(34, 139, 230, 0.3)" }}>Save Class</button>
             </div>
           </div>
         </div>
