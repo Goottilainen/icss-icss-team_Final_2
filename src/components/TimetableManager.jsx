@@ -50,8 +50,7 @@ export default function TimetableManager() {
     return pastelColors[Math.abs(hash) % pastelColors.length];
   };
 
-  // --- CARGA DE DATOS (CON USECALLBACK PARA EVITAR ERRORES DE BUILD) ---
-
+  // --- CARGA DE DATOS (Con useCallback para evitar warnings) ---
   const loadSchedule = useCallback(async () => {
     if (!selectedSemester) return;
     setLoading(true);
@@ -72,7 +71,7 @@ export default function TimetableManager() {
     } catch (e) { console.error(e); }
   }, [selectedSemester]);
 
-  // Carga inicial de semestres y listas estáticas
+  // Carga inicial
   useEffect(() => {
     async function loadInitialData() {
       try {
@@ -89,13 +88,13 @@ export default function TimetableManager() {
     loadInitialData();
   }, []);
 
-  // Efecto principal: Carga horario cuando cambia el semestre
+  // Carga cuando cambia semestre
   useEffect(() => {
     if (selectedSemester) {
       loadSchedule();
       loadDropdowns();
     }
-  }, [selectedSemester, loadSchedule, loadDropdowns]); // ✅ Ahora sí están las dependencias correctas
+  }, [selectedSemester, loadSchedule, loadDropdowns]);
 
   // --- FILTRADO ---
   const getFilteredSchedule = () => {
@@ -370,9 +369,10 @@ export default function TimetableManager() {
                 {viewMode === "Month" ? (
                   <div style={{ fontSize: "1.4rem", fontWeight: "700" }}>{displayMonthName}</div>
                 ) : viewMode === "Semester" ? (
+                  // ✅ AQUÍ ESTÁ EL CAMBIO: Título = Nombre del Semestre
                   <>
-                    <div style={{ fontSize: "1.4rem", fontWeight: "700" }}>Master Schedule</div>
-                    <div style={{ fontSize: "1rem", fontWeight: "600", opacity: 0.9 }}>{selectedSemester}</div>
+                    <div style={{ fontSize: "1.4rem", fontWeight: "700" }}>{selectedSemester}</div>
+                    <div style={{ fontSize: "1rem", fontWeight: "600", opacity: 0.9 }}>Semester Overview</div>
                   </>
                 ) : (
                   <>
