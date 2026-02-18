@@ -151,17 +151,18 @@ export default function TimetableManager() {
   };
 
   const getDayNameFromDate = (date) => date.toLocaleDateString('en-US', { weekday: 'long' });
-  const displayDayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
   const displayDateNum = formatDateShort(currentDate);
   const displayMonthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  // ✅ CORRECCIÓN 1: Eliminada 'displayDayName' que no se usaba
   const visibleDays = (viewMode === "Week") ? daysOfWeek : [getDayNameFromDate(currentDate)];
 
   // Helper para calcular fecha de celda en List View
   const getDateForDayOfWeek = (dayName) => {
     const dayIndex = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].indexOf(dayName);
-    const currentDayIndex = currentDate.getDay(); // 0-6
-    // Ajuste simple asumiendo que estamos en la misma semana visual
-    // Nota: Esto es visual. En un sistema real usaríamos fechas reales de la DB.
+
+    // ✅ CORRECCIÓN 2: Eliminada 'currentDayIndex' que no se usaba
+
     // Para alinear con el header de CW, calculamos la fecha de ese día en la semana actual mostrada.
     const curr = new Date(currentDate);
     const currentDayIso = curr.getDay() || 7;
