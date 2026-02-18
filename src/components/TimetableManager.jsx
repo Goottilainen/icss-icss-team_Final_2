@@ -73,10 +73,12 @@ export default function TimetableManager() {
   const getWeekRangeString = () => {
     const curr = new Date(currentDate);
     const day = curr.getDay() || 7; // Convertir Domingo (0) a 7
-    // Lunes
+
+    // Calcular Lunes
     const monday = new Date(curr);
     monday.setDate(curr.getDate() - day + 1);
-    // Viernes
+
+    // Calcular Viernes
     const friday = new Date(monday);
     friday.setDate(monday.getDate() + 4);
 
@@ -138,12 +140,14 @@ export default function TimetableManager() {
 
   // --- NAVEGACIÓN ---
   const handleNavigateDate = (direction) => {
-    if (viewMode === "Semester") return;
+    if (viewMode === "Semester" && !isListView) return; // En semester grid no se navega
+
     const newDate = new Date(currentDate);
-    if (viewMode === "Day") {
-      newDate.setDate(currentDate.getDate() + (direction === "next" ? 1 : -1));
-    } else if (viewMode === "Week") {
+    // Si es List View, navegamos por semanas siempre (como en la foto)
+    if (isListView || viewMode === "Week") {
       newDate.setDate(currentDate.getDate() + (direction === "next" ? 7 : -7));
+    } else if (viewMode === "Day") {
+      newDate.setDate(currentDate.getDate() + (direction === "next" ? 1 : -1));
     } else if (viewMode === "Month") {
       newDate.setMonth(currentDate.getMonth() + (direction === "next" ? 1 : -1));
     }
@@ -151,18 +155,19 @@ export default function TimetableManager() {
   };
 
   const getDayNameFromDate = (date) => date.toLocaleDateString('en-US', { weekday: 'long' });
+  const displayDayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
   const displayDateNum = formatDateShort(currentDate);
   const displayMonthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
   const visibleDays = (viewMode === "Week") ? daysOfWeek : [getDayNameFromDate(currentDate)];
 
   // Helper para calcular fecha de celda en List View
   const getDateForDayOfWeek = (dayName) => {
     const dayIndex = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].indexOf(dayName);
 
-    // Para alinear con el header de CW, calculamos la fecha de ese día en la semana actual mostrada.
     const curr = new Date(currentDate);
     const currentDayIso = curr.getDay() || 7;
-    const targetDayIso = dayIndex === 0 ? 7 : dayIndex; // Convertir Domingo a 7 para lógica Lunes-Domingo
+    const targetDayIso = dayIndex === 0 ? 7 : dayIndex;
 
     const diff = targetDayIso - currentDayIso;
     const targetDate = new Date(curr);
@@ -208,7 +213,7 @@ export default function TimetableManager() {
 
   // --- RENDERIZADORES ---
 
-  // 1. ✅ LISTA TIPO "ANDY VIEW" (ESTA ES LA PARTE QUE CAMBIA)
+  // 1. LISTA TIPO "ANDY VIEW" (Header Azul + From/To)
   const renderListView = () => {
     const sortedList = [...filteredData].sort((a, b) => {
       const dayOrder = { "Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5 };
@@ -220,11 +225,10 @@ export default function TimetableManager() {
       <div style={{ marginTop: "20px", overflowX: "auto", boxShadow: "0 2px 5px rgba(0,0,0,0.05)", borderRadius: "4px" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Inter', sans-serif", fontSize: "0.9rem" }}>
           <thead>
-            {/* ✅ Header Azul Oscuro como en la foto */}
+            {/* Header Azul Oscuro */}
             <tr style={{ background: "#2b4a8e", color: "white", borderBottom: "2px solid #1a3b70" }}>
               <th style={{ padding: "12px 10px", textAlign: "left" }}>Date</th>
               <th style={{ padding: "12px 10px", textAlign: "left" }}>Day</th>
-              {/* ✅ Columnas separadas From / To */}
               <th style={{ padding: "12px 10px", textAlign: "left" }}>From</th>
               <th style={{ padding: "12px 10px", textAlign: "left" }}>To</th>
               <th style={{ padding: "12px 10px", textAlign: "left" }}>Module</th>
@@ -241,7 +245,6 @@ export default function TimetableManager() {
               sortedList.map((entry, idx) => {
                 const dateStr = getDateForDayOfWeek(entry.day_of_week);
                 return (
-                  // ✅ Filas Cebra (Gris / Blanco)
                   <tr key={entry.id} style={{ background: idx % 2 === 0 ? "#f1f3f5" : "white", borderBottom: "1px solid #dee2e6" }}>
                     <td style={{ padding: "10px", color: "#495057" }}>{dateStr}</td>
                     <td style={{ padding: "10px", fontWeight: "600", color: "#343a40" }}>{entry.day_of_week}</td>
@@ -458,32 +461,46 @@ export default function TimetableManager() {
 
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
 
-          {/* ✅ NAVEGACIÓN TIPO "CW" (Foto Requerida) */}
-          {(viewMode !== "Semester" || isListView) && (
+          {/* ✅ NAVEGACIÓN Y TÍTULO CW (Visible en Week Y EN List View) */}
+          {(viewMode === "Week" || isListView) && viewMode !== "Semester" && viewMode !== "Month" && viewMode !== "Day" && (
             <>
               <button onClick={() => handleNavigateDate("prev")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "2rem", color: "#2b4a8e" }}>‹</button>
               <div style={{ textAlign: "center", color: "#2b4a8e" }}>
-                {viewMode === "Month" ? (
-                  <div style={{ fontSize: "1.4rem", fontWeight: "700" }}>{displayMonthName}</div>
-                ) : (
-                  <>
-                    {/* Título CW + Número */}
-                    <div style={{ fontSize: "1.2rem", fontWeight: "700", lineHeight: "1.2" }}>
-                      CW {getWeekNumber(currentDate)}
-                    </div>
-                    {/* Fechas (DD.MM.YY - DD.MM.YY) */}
-                    <div style={{ fontSize: "1rem", fontWeight: "600", opacity: 0.9 }}>
-                      {viewMode === "Day" ? displayDateNum : getWeekRangeString()}
-                    </div>
-                  </>
-                )}
+                {/* Título CW */}
+                <div style={{ fontSize: "1.2rem", fontWeight: "700", lineHeight: "1.2" }}>
+                  CW {getWeekNumber(currentDate)}
+                </div>
+                {/* Fechas (DD.MM.YY - DD.MM.YY) */}
+                <div style={{ fontSize: "1rem", fontWeight: "600", opacity: 0.9 }}>
+                  {getWeekRangeString()}
+                </div>
               </div>
               <button onClick={() => handleNavigateDate("next")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "2rem", color: "#2b4a8e" }}>›</button>
             </>
           )}
 
+          {/* Títulos para otros modos si no es List View */}
+          {!isListView && viewMode === "Day" && (
+             <>
+                <button onClick={() => handleNavigateDate("prev")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "2rem", color: "#2b4a8e" }}>‹</button>
+                <div style={{ textAlign: "center", color: "#2b4a8e" }}>
+                    <div style={{ fontSize: "1.1rem", fontWeight: "700" }}>{displayDayName}</div>
+                    <div style={{ fontSize: "1rem" }}>{displayDateNum}</div>
+                </div>
+                <button onClick={() => handleNavigateDate("next")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "2rem", color: "#2b4a8e" }}>›</button>
+             </>
+          )}
+
+          {!isListView && viewMode === "Month" && (
+             <>
+                <button onClick={() => handleNavigateDate("prev")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "2rem", color: "#2b4a8e" }}>‹</button>
+                <div style={{ fontSize: "1.4rem", fontWeight: "700", color: "#2b4a8e" }}>{displayMonthName}</div>
+                <button onClick={() => handleNavigateDate("next")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "2rem", color: "#2b4a8e" }}>›</button>
+             </>
+          )}
+
           {viewMode === "Semester" && !isListView && (
-             <><div style={{ fontSize: "1.4rem", fontWeight: "700", color:"#2b4a8e" }}>{selectedSemester}</div></>
+             <div style={{ fontSize: "1.4rem", fontWeight: "700", color:"#2b4a8e" }}>{selectedSemester}</div>
           )}
         </div>
 
