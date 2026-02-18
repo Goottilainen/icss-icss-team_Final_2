@@ -54,8 +54,6 @@ export default function TimetableManager() {
   };
 
   // --- HELPERS DE FECHAS (CW CALCULATION) ---
-
-  // Calcula el número de semana (ISO 8601)
   const getWeekNumber = (d) => {
     d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
@@ -64,24 +62,17 @@ export default function TimetableManager() {
     return weekNo;
   };
 
-  // Formato DD.MM.YY
   const formatDateShort = (date) => {
     return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '.');
   };
 
-  // Obtener rango de la semana (Lunes - Viernes) basado en currentDate
   const getWeekRangeString = () => {
     const curr = new Date(currentDate);
-    const day = curr.getDay() || 7; // Convertir Domingo (0) a 7
-
-    // Calcular Lunes
+    const day = curr.getDay() || 7;
     const monday = new Date(curr);
     monday.setDate(curr.getDate() - day + 1);
-
-    // Calcular Viernes
     const friday = new Date(monday);
     friday.setDate(monday.getDate() + 4);
-
     return `(${formatDateShort(monday)}-${formatDateShort(friday)})`;
   };
 
@@ -140,11 +131,10 @@ export default function TimetableManager() {
 
   // --- NAVEGACIÓN ---
   const handleNavigateDate = (direction) => {
-    if (viewMode === "Semester" && !isListView) return; // En semester grid no se navega
+    if (viewMode === "Semester" && !isListView) return;
 
     const newDate = new Date(currentDate);
-    // Si es List View, navegamos por semanas siempre (como en la foto)
-    if (isListView || viewMode === "Week") {
+    if (viewMode === "Week" || isListView) { // En List View navegamos por semanas por defecto
       newDate.setDate(currentDate.getDate() + (direction === "next" ? 7 : -7));
     } else if (viewMode === "Day") {
       newDate.setDate(currentDate.getDate() + (direction === "next" ? 1 : -1));
@@ -155,20 +145,16 @@ export default function TimetableManager() {
   };
 
   const getDayNameFromDate = (date) => date.toLocaleDateString('en-US', { weekday: 'long' });
-  const displayDayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
   const displayDateNum = formatDateShort(currentDate);
   const displayMonthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   const visibleDays = (viewMode === "Week") ? daysOfWeek : [getDayNameFromDate(currentDate)];
 
-  // Helper para calcular fecha de celda en List View
   const getDateForDayOfWeek = (dayName) => {
     const dayIndex = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].indexOf(dayName);
-
     const curr = new Date(currentDate);
     const currentDayIso = curr.getDay() || 7;
     const targetDayIso = dayIndex === 0 ? 7 : dayIndex;
-
     const diff = targetDayIso - currentDayIso;
     const targetDate = new Date(curr);
     targetDate.setDate(curr.getDate() + diff);
@@ -213,7 +199,7 @@ export default function TimetableManager() {
 
   // --- RENDERIZADORES ---
 
-  // 1. LISTA TIPO "ANDY VIEW" (Header Azul + From/To)
+  // 1. LISTA TIPO "ANDY VIEW"
   const renderListView = () => {
     const sortedList = [...filteredData].sort((a, b) => {
       const dayOrder = { "Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5 };
@@ -225,7 +211,6 @@ export default function TimetableManager() {
       <div style={{ marginTop: "20px", overflowX: "auto", boxShadow: "0 2px 5px rgba(0,0,0,0.05)", borderRadius: "4px" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Inter', sans-serif", fontSize: "0.9rem" }}>
           <thead>
-            {/* Header Azul Oscuro */}
             <tr style={{ background: "#2b4a8e", color: "white", borderBottom: "2px solid #1a3b70" }}>
               <th style={{ padding: "12px 10px", textAlign: "left" }}>Date</th>
               <th style={{ padding: "12px 10px", textAlign: "left" }}>Day</th>
@@ -450,19 +435,20 @@ export default function TimetableManager() {
 
       {/* CONTROLES */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px" }}>
-        {!isListView ? (
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button style={navButtonStyle("Day")} onClick={() => setViewMode("Day")}>Day</button>
-            <button style={navButtonStyle("Week")} onClick={() => setViewMode("Week")}>Week</button>
-            <button style={navButtonStyle("Month")} onClick={() => setViewMode("Month")}>Month</button>
-            <button style={navButtonStyle("Semester")} onClick={() => setViewMode("Semester")}>Semester</button>
-          </div>
-        ) : <div></div>}
 
+        {/* ✅ BOTONES DE MODO: AHORA SIEMPRE VISIBLES */}
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button style={navButtonStyle("Day")} onClick={() => setViewMode("Day")}>Day</button>
+          <button style={navButtonStyle("Week")} onClick={() => setViewMode("Week")}>Week</button>
+          <button style={navButtonStyle("Month")} onClick={() => setViewMode("Month")}>Month</button>
+          <button style={navButtonStyle("Semester")} onClick={() => setViewMode("Semester")}>Semester</button>
+        </div>
+
+        {/* NAVEGACIÓN Y TÍTULOS */}
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
 
-          {/* ✅ NAVEGACIÓN Y TÍTULO CW (Visible en Week Y EN List View) */}
-          {(viewMode === "Week" || isListView) && viewMode !== "Semester" && viewMode !== "Month" && viewMode !== "Day" && (
+          {/* ✅ NAVEGACIÓN VISIBLE EN WEEK y LIST VIEW (Si no es Month ni Semester ni Day) */}
+          {((viewMode === "Week") || (isListView && viewMode !== "Semester" && viewMode !== "Month" && viewMode !== "Day")) && (
             <>
               <button onClick={() => handleNavigateDate("prev")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "2rem", color: "#2b4a8e" }}>‹</button>
               <div style={{ textAlign: "center", color: "#2b4a8e" }}>
@@ -479,19 +465,19 @@ export default function TimetableManager() {
             </>
           )}
 
-          {/* Títulos para otros modos si no es List View */}
-          {!isListView && viewMode === "Day" && (
+          {/* Títulos para otros modos si no estamos en la lógica de CW arriba */}
+          {viewMode === "Day" && !isListView && (
              <>
                 <button onClick={() => handleNavigateDate("prev")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "2rem", color: "#2b4a8e" }}>‹</button>
                 <div style={{ textAlign: "center", color: "#2b4a8e" }}>
-                    <div style={{ fontSize: "1.1rem", fontWeight: "700" }}>{displayDayName}</div>
+                    <div style={{ fontSize: "1.1rem", fontWeight: "700" }}>{getDayNameFromDate(currentDate)}</div>
                     <div style={{ fontSize: "1rem" }}>{displayDateNum}</div>
                 </div>
                 <button onClick={() => handleNavigateDate("next")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "2rem", color: "#2b4a8e" }}>›</button>
              </>
           )}
 
-          {!isListView && viewMode === "Month" && (
+          {viewMode === "Month" && !isListView && (
              <>
                 <button onClick={() => handleNavigateDate("prev")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "2rem", color: "#2b4a8e" }}>‹</button>
                 <div style={{ fontSize: "1.4rem", fontWeight: "700", color: "#2b4a8e" }}>{displayMonthName}</div>
@@ -504,6 +490,7 @@ export default function TimetableManager() {
           )}
         </div>
 
+        {/* TOGGLE LIST / CALENDAR */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <span style={{ color: isListView ? "#2b4a8e" : "#6c757d", fontWeight: isListView ? "700" : "400", fontSize: "0.95rem" }}>List View</span>
           <div onClick={() => setIsListView(!isListView)} style={{ width: "44px", height: "24px", background: isListView ? "#2b4a8e" : "#6c757d", borderRadius: "12px", position: "relative", cursor: "pointer", display: "flex", alignItems: "center", transition: "background 0.3s" }}>
