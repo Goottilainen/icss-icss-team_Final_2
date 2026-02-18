@@ -70,7 +70,6 @@ const styles = {
   modal: { backgroundColor: "#ffffff", padding: "30px", borderRadius: "12px", width: "650px", maxWidth: "90%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }
 };
 
-// ✅ FORMAT DATE Utility (15.01.2026 fix)
 const formatDate = (isoDate) => {
   if (!isoDate) return "-";
   const d = new Date(isoDate);
@@ -89,11 +88,9 @@ export default function ProgramOverview({ initialData, clearInitialData, current
   const [specializations, setSpecializations] = useState([]);
   const [modules, setModules] = useState([]);
 
-  // ✅ ROLE-BASED PERMISSIONS (Lowercase FIX)
   const role = currentUserRole?.toLowerCase();
   const isPM = ["admin", "pm"].includes(role);
 
-  // Helper function to determine if the user can manage a specific program
   const canManageProgram = (program) => {
     if (isPM) return true;
     if (role === "hosp") {
@@ -174,7 +171,9 @@ export default function ProgramOverview({ initialData, clearInitialData, current
 
 function ProgramList({ programs, lecturers, onSelect, refresh, isPM, canManageProgram }) {
   const [showCreate, setShowCreate] = useState(false);
-  const [levelFilter, setLevelFilter] = useState("Bachelor");
+
+  // ✅ FIX: Default to "All"
+  const [levelFilter, setLevelFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [hoverId, setHoverId] = useState(null);
 
@@ -198,8 +197,9 @@ function ProgramList({ programs, lecturers, onSelect, refresh, isPM, canManagePr
       setNewProg({ ...newProg, level: newLevel, degree_type: defaultDegree });
   };
 
+  // ✅ FIX: Handling the "All" case
   const filtered = programs.filter(p => {
-      const matchesLevel = p.level === levelFilter;
+      const matchesLevel = levelFilter === "All" || p.level === levelFilter;
       const q = searchQuery.toLowerCase();
       const matchesSearch =
           p.name.toLowerCase().includes(q) ||
@@ -213,8 +213,10 @@ function ProgramList({ programs, lecturers, onSelect, refresh, isPM, canManagePr
       <div style={styles.controlsBar}>
         <div style={styles.leftControls}>
             <div style={styles.toggleContainer}>
-            <button style={{ ...styles.toggleBtn, ...(levelFilter === "Bachelor" ? styles.toggleBtnActive : {}) }} onClick={() => setLevelFilter("Bachelor")}>Bachelor</button>
-            <button style={{ ...styles.toggleBtn, ...(levelFilter === "Master" ? styles.toggleBtnActive : {}) }} onClick={() => setLevelFilter("Master")}>Master</button>
+              {/* ✅ FIX: Added "All" Button */}
+              <button style={{ ...styles.toggleBtn, ...(levelFilter === "All" ? styles.toggleBtnActive : {}) }} onClick={() => setLevelFilter("All")}>All</button>
+              <button style={{ ...styles.toggleBtn, ...(levelFilter === "Bachelor" ? styles.toggleBtnActive : {}) }} onClick={() => setLevelFilter("Bachelor")}>Bachelor</button>
+              <button style={{ ...styles.toggleBtn, ...(levelFilter === "Master" ? styles.toggleBtnActive : {}) }} onClick={() => setLevelFilter("Master")}>Master</button>
             </div>
             <input
                 style={styles.searchBar}
@@ -269,14 +271,11 @@ function ProgramList({ programs, lecturers, onSelect, refresh, isPM, canManagePr
                         <span style={styles.progSubtitle}>{p.acronym}</span>
                     </div>
                     <div style={styles.cellText}>{p.location || "-"}</div>
-
-                    {/* ✅ DISPLAY COMPUTED NAME (Title First Last): */}
                     <div style={styles.cellText}>
                         {p.head_lecturer
                             ? `${p.head_lecturer.title} ${p.head_lecturer.first_name} ${p.head_lecturer.last_name}`
                             : "-"}
                     </div>
-
                     <div style={styles.cellText}>{formatDate(p.start_date)}</div>
                     <div style={styles.ectsBadge}>{p.total_ects} ECTS</div>
                 </div>
@@ -621,14 +620,18 @@ function ProgramWorkspace({ program, lecturers, specializations, modules, onBack
       {showDeleteModal && (
         <DeleteConfirmationModal
             title="Delete Program?"
-            msg="This action cannot be undone. It will remove the program and unlink all related specializations and modules."
+
+            msg="⚠️ WARNING: This action cannot be undone. It will permanently delete this program AND delete ALL modules and specializations associated with it."
             itemName={program.name}
             onClose={() => setShowDeleteModal(false)}
             onConfirm={() => {
                 api.deleteProgram(program.id).then(() => {
                     setShowDeleteModal(false);
                     onBack();
-                }).catch(err => alert("Error deleting program."));
+                }).catch(err => {
+                    console.error(err);
+                    alert("Error deleting program. Ensure database cascading is enabled.");
+                });
             }}
         />
       )}
@@ -852,17 +855,19 @@ function DeleteConfirmationModal({ title, msg, itemName, onClose, onConfirm }) {
                 <h3 style={{ marginTop: 0, color: "#991b1b" }}>{title}</h3>
                 <p style={{ color: "#4b5563", marginBottom: "20px", lineHeight:'1.5' }}>
                     {msg} <br/>
-                    {itemName && <strong>{itemName}</strong>}
+                    {itemName && <strong style={{display: 'block', marginTop: '10px'}}>{itemName}</strong>}
                 </p>
-                <p style={{ fontSize: "0.9rem", fontWeight: "bold", marginBottom: "8px", color:'#374151' }}>
-                    Type "DELETE" to confirm:
-                </p>
-                <input
-                    style={styles.input}
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    placeholder="DELETE"
-                />
+                <div style={{ background: "#fef2f2", padding: "15px", borderRadius: "8px", border: "1px solid #fecaca", marginBottom: "25px" }}>
+                    <p style={{ fontSize: "0.9rem", fontWeight: "bold", margin: "0 0 10px 0", color:'#991b1b' }}>
+                        Type "DELETE" to confirm:
+                    </p>
+                    <input
+                        style={{...styles.input, marginBottom: 0, borderColor: '#fca5a5'}}
+                        value={input}
+                        onChange={e => setInput(e.target.value)}
+                        placeholder="DELETE"
+                    />
+                </div>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
                     <button style={{ ...styles.btn, background: "#e5e7eb", color: "#374151" }} onClick={onClose}>Cancel</button>
                     <button
