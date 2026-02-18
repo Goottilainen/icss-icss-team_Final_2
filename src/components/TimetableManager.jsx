@@ -53,6 +53,36 @@ export default function TimetableManager() {
     return pastelColors[Math.abs(hash) % pastelColors.length];
   };
 
+  // --- HELPERS DE FECHAS (CW CALCULATION) ---
+
+  // Calcula el número de semana (ISO 8601)
+  const getWeekNumber = (d) => {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return weekNo;
+  };
+
+  // Formato DD.MM.YY
+  const formatDateShort = (date) => {
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '.');
+  };
+
+  // Obtener rango de la semana (Lunes - Viernes) basado en currentDate
+  const getWeekRangeString = () => {
+    const curr = new Date(currentDate);
+    const day = curr.getDay() || 7; // Convertir Domingo (0) a 7
+    // Lunes
+    const monday = new Date(curr);
+    monday.setDate(curr.getDate() - day + 1);
+    // Viernes
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+
+    return `(${formatDateShort(monday)}-${formatDateShort(friday)})`;
+  };
+
   // --- CARGA DE DATOS ---
   const loadSchedule = useCallback(async () => {
     if (!selectedSemester) return;
@@ -122,21 +152,24 @@ export default function TimetableManager() {
 
   const getDayNameFromDate = (date) => date.toLocaleDateString('en-US', { weekday: 'long' });
   const displayDayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
-
-  // Formato de fecha corto (ej: 16.06.25) para simular la foto
-  const formatDateShort = (date) => date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '.');
-
   const displayDateNum = formatDateShort(currentDate);
   const displayMonthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   const visibleDays = (viewMode === "Week") ? daysOfWeek : [getDayNameFromDate(currentDate)];
 
-  // Helper para calcular la fecha real de un día de la semana (Lunes, Martes...) basado en la currentDate
+  // Helper para calcular fecha de celda en List View
   const getDateForDayOfWeek = (dayName) => {
     const dayIndex = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].indexOf(dayName);
-    const currentDayIndex = currentDate.getDay();
-    const diff = dayIndex - currentDayIndex;
-    const targetDate = new Date(currentDate);
-    targetDate.setDate(currentDate.getDate() + diff);
+    const currentDayIndex = currentDate.getDay(); // 0-6
+    // Ajuste simple asumiendo que estamos en la misma semana visual
+    // Nota: Esto es visual. En un sistema real usaríamos fechas reales de la DB.
+    // Para alinear con el header de CW, calculamos la fecha de ese día en la semana actual mostrada.
+    const curr = new Date(currentDate);
+    const currentDayIso = curr.getDay() || 7;
+    const targetDayIso = dayIndex === 0 ? 7 : dayIndex; // Convertir Domingo a 7 para lógica Lunes-Domingo
+
+    const diff = targetDayIso - currentDayIso;
+    const targetDate = new Date(curr);
+    targetDate.setDate(curr.getDate() + diff);
     return formatDateShort(targetDate);
   };
 
@@ -178,7 +211,7 @@ export default function TimetableManager() {
 
   // --- RENDERIZADORES ---
 
-  // 1. LISTA TIPO "ANDY VIEW" (Foto 2)
+  // 1. LISTA TIPO "ANDY VIEW"
   const renderListView = () => {
     const sortedList = [...filteredData].sort((a, b) => {
       const dayOrder = { "Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5 };
@@ -190,7 +223,6 @@ export default function TimetableManager() {
       <div style={{ marginTop: "20px", overflowX: "auto", boxShadow: "0 2px 5px rgba(0,0,0,0.05)", borderRadius: "4px" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Inter', sans-serif", fontSize: "0.9rem" }}>
           <thead>
-            {/* Header Azul Oscuro como en la foto */}
             <tr style={{ background: "#2b4a8e", color: "white", borderBottom: "2px solid #1a3b70" }}>
               <th style={{ padding: "12px 10px", textAlign: "left" }}>Date</th>
               <th style={{ padding: "12px 10px", textAlign: "left" }}>Day</th>
@@ -208,11 +240,8 @@ export default function TimetableManager() {
               <tr><td colSpan="9" style={{ padding: "20px", textAlign: "center", color: "#666" }}>No classes scheduled for this view.</td></tr>
             ) : (
               sortedList.map((entry, idx) => {
-                // Cálculo de fecha simulada para la vista
                 const dateStr = getDateForDayOfWeek(entry.day_of_week);
-
                 return (
-                  // Filas Cebra (Gris / Blanco)
                   <tr key={entry.id} style={{ background: idx % 2 === 0 ? "#f1f3f5" : "white", borderBottom: "1px solid #dee2e6" }}>
                     <td style={{ padding: "10px", color: "#495057" }}>{dateStr}</td>
                     <td style={{ padding: "10px", fontWeight: "600", color: "#343a40" }}>{entry.day_of_week}</td>
@@ -235,7 +264,7 @@ export default function TimetableManager() {
     );
   };
 
-  // 2. VISTA SEMESTRAL COMPLETA
+  // 2. VISTA SEMESTRAL
   const renderSemesterPlan = () => {
     let months = [];
     if (semesterType === "Winter") {
@@ -255,7 +284,6 @@ export default function TimetableManager() {
         { name: "August", days: 31, startDay: 6 }
       ];
     }
-
     return (
       <div style={{marginTop: "20px"}}>
         <div style={{display:"flex", justifyContent:"center", marginBottom:"20px", gap:"10px"}}>
@@ -310,7 +338,7 @@ export default function TimetableManager() {
     );
   };
 
-  // 3. VISTA MES (Calendario clásico)
+  // 3. VISTA MES
   const renderMonthView = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -348,7 +376,7 @@ export default function TimetableManager() {
     );
   };
 
-  // 4. VISTA SEMANA / DÍA
+  // 4. VISTA GRID (CALENDARIO SEMANAL)
   const renderGridView = () => (
     <div style={{ borderTop: "1px solid #e9ecef", overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "900px", tableLayout: "fixed" }}>
@@ -429,7 +457,8 @@ export default function TimetableManager() {
         ) : <div></div>}
 
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          {/* ✅ NAVEGACIÓN AHORA VISIBLE SIEMPRE (Incluso en List View) */}
+
+          {/* ✅ NAVEGACIÓN TIPO "CW" (Foto Requerida) */}
           {(viewMode !== "Semester" || isListView) && (
             <>
               <button onClick={() => handleNavigateDate("prev")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "2rem", color: "#2b4a8e" }}>‹</button>
@@ -438,12 +467,13 @@ export default function TimetableManager() {
                   <div style={{ fontSize: "1.4rem", fontWeight: "700" }}>{displayMonthName}</div>
                 ) : (
                   <>
-                    {/* Título tipo "CW 25 (16.06.25...)" */}
-                    <div style={{ fontSize: "1.1rem", fontWeight: "700", lineHeight: "1.2" }}>
-                      {isListView ? `CW Week` : (viewMode === "Week" ? "Week View" : displayDayName)}
+                    {/* Título CW + Número */}
+                    <div style={{ fontSize: "1.2rem", fontWeight: "700", lineHeight: "1.2" }}>
+                      CW {getWeekNumber(currentDate)}
                     </div>
+                    {/* Fechas (DD.MM.YY - DD.MM.YY) */}
                     <div style={{ fontSize: "1rem", fontWeight: "600", opacity: 0.9 }}>
-                      ({displayDateNum})
+                      {viewMode === "Day" ? displayDateNum : getWeekRangeString()}
                     </div>
                   </>
                 )}
@@ -451,6 +481,7 @@ export default function TimetableManager() {
               <button onClick={() => handleNavigateDate("next")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "2rem", color: "#2b4a8e" }}>›</button>
             </>
           )}
+
           {viewMode === "Semester" && !isListView && (
              <><div style={{ fontSize: "1.4rem", fontWeight: "700", color:"#2b4a8e" }}>{selectedSemester}</div></>
           )}
