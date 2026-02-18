@@ -153,15 +153,11 @@ export default function TimetableManager() {
   const getDayNameFromDate = (date) => date.toLocaleDateString('en-US', { weekday: 'long' });
   const displayDateNum = formatDateShort(currentDate);
   const displayMonthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-  // ✅ CORRECCIÓN 1: Eliminada 'displayDayName' que no se usaba
   const visibleDays = (viewMode === "Week") ? daysOfWeek : [getDayNameFromDate(currentDate)];
 
   // Helper para calcular fecha de celda en List View
   const getDateForDayOfWeek = (dayName) => {
     const dayIndex = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].indexOf(dayName);
-
-    // ✅ CORRECCIÓN 2: Eliminada 'currentDayIndex' que no se usaba
 
     // Para alinear con el header de CW, calculamos la fecha de ese día en la semana actual mostrada.
     const curr = new Date(currentDate);
@@ -212,7 +208,7 @@ export default function TimetableManager() {
 
   // --- RENDERIZADORES ---
 
-  // 1. LISTA TIPO "ANDY VIEW"
+  // 1. ✅ LISTA TIPO "ANDY VIEW" (ESTA ES LA PARTE QUE CAMBIA)
   const renderListView = () => {
     const sortedList = [...filteredData].sort((a, b) => {
       const dayOrder = { "Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5 };
@@ -224,9 +220,11 @@ export default function TimetableManager() {
       <div style={{ marginTop: "20px", overflowX: "auto", boxShadow: "0 2px 5px rgba(0,0,0,0.05)", borderRadius: "4px" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Inter', sans-serif", fontSize: "0.9rem" }}>
           <thead>
+            {/* ✅ Header Azul Oscuro como en la foto */}
             <tr style={{ background: "#2b4a8e", color: "white", borderBottom: "2px solid #1a3b70" }}>
               <th style={{ padding: "12px 10px", textAlign: "left" }}>Date</th>
               <th style={{ padding: "12px 10px", textAlign: "left" }}>Day</th>
+              {/* ✅ Columnas separadas From / To */}
               <th style={{ padding: "12px 10px", textAlign: "left" }}>From</th>
               <th style={{ padding: "12px 10px", textAlign: "left" }}>To</th>
               <th style={{ padding: "12px 10px", textAlign: "left" }}>Module</th>
@@ -243,6 +241,7 @@ export default function TimetableManager() {
               sortedList.map((entry, idx) => {
                 const dateStr = getDateForDayOfWeek(entry.day_of_week);
                 return (
+                  // ✅ Filas Cebra (Gris / Blanco)
                   <tr key={entry.id} style={{ background: idx % 2 === 0 ? "#f1f3f5" : "white", borderBottom: "1px solid #dee2e6" }}>
                     <td style={{ padding: "10px", color: "#495057" }}>{dateStr}</td>
                     <td style={{ padding: "10px", fontWeight: "600", color: "#343a40" }}>{entry.day_of_week}</td>
